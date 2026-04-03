@@ -1,0 +1,342 @@
+{% extends "admin_base.html" %}
+{% block title %}Edit Product — Admin{% endblock %}
+{% block page_title %}Edit Product{% endblock %}
+{% block content %}
+{% if msg %}<div class="msg-ok" style="margin-bottom:1rem">{{ msg }}</div>{% endif %}
+
+<div style="display:grid;grid-template-columns:1fr 300px;gap:1.5rem;align-items:start">
+
+  <!-- ── Main Form ── -->
+  <div>
+
+    <!-- Basic Info -->
+    <div class="card" style="margin-bottom:1.2rem">
+      <div class="card-hdr"><h3>📦 Basic Information — ID #{{ p['id'] }}</h3></div>
+      <form method="post" enctype="multipart/form-data" id="editForm">
+        <div style="padding:1.4rem">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Product Name</label>
+              <input name="name" id="prodName" value="{{ p['name'] }}" required
+                     oninput="document.getElementById('previewName').textContent=this.value">
+            </div>
+            <div class="form-group">
+              <label>Price (₹)</label>
+              <input type="number" name="price" value="{{ p['price'] }}" min="0" step="0.01" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Category</label>
+              <select name="category" onchange="onCatChange(this.value)">
+                {% for c in categories %}<option {% if c==p['category'] %}selected{% endif %}>{{ c }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Badge</label>
+              <select name="badge">
+                <option value="" {% if not p['badge'] %}selected{% endif %}>None</option>
+                {% for b in ["Best Seller","New","Budget Pick","Premium","Gaming","Sports","Gift","Traditional"] %}
+                <option {% if p['badge']==b %}selected{% endif %}>{{ b }}</option>{% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Rating (0–5)</label>
+              <input type="number" name="rating" value="{{ p['rating'] }}" min="0" max="5" step="0.1">
+            </div>
+            <div class="form-group">
+              <label>Stock</label>
+              <input type="number" name="stock" value="{{ p['stock'] or 100 }}" min="0">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Trending</label>
+            <select name="trending">
+              <option value="0" {% if not p['trending'] %}selected{% endif %}>No</option>
+              <option value="1" {% if p['trending'] %}selected{% endif %}>Yes</option>
+            </select>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Product Options -->
+    {% if custom_opts %}
+    <div class="card" style="margin-bottom:1.2rem">
+      <div class="card-hdr"><h3>⚙️ Product Options</h3></div>
+      <div style="padding:1.4rem">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.2rem">
+          {% for opt in custom_opts %}
+          <div class="opt-group">
+            <label class="opt-label">{{ opt.label }}
+              {% if opt.required %}<span class="opt-required">Required</span>
+              {% else %}<span class="opt-optional">Optional</span>{% endif %}
+            </label>
+            {% set sv = saved_variants.get(opt.key, '') or saved_variants.get(opt.label|lower, '') %}
+            {% if sv %}<div style="margin-bottom:.3rem"><span class="opt-saved-badge">Currently: <strong>{{ sv }}</strong></span></div>{% endif %}
+            <div class="opt-choices" id="choices_{{ opt.key }}">
+              {% for choice in opt.choices %}
+              <button type="button" class="opt-choice-btn {% if choice==sv %}selected{% endif %}"
+                      onclick="selectOpt('{{ opt.key }}',this,'{{ choice }}')">{{ choice }}</button>
+              {% endfor %}
+            </div>
+            <input type="text" name="opt_{{ opt.key }}" id="opt_{{ opt.key }}" value="{{ sv }}"
+                   placeholder="Select above or type…" class="opt-text-input"
+                   style="margin-top:.5rem;width:100%;box-sizing:border-box" form="editForm">
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Images Section -->
+    <div class="card" style="margin-bottom:1.2rem">
+      <div class="card-hdr"><h3>📷 Product Images (up to 6)</h3></div>
+      <div style="padding:1.4rem">
+        <p style="font-size:.75rem;color:#6b7280;margin-bottom:1.1rem">
+          <strong>Image 1</strong> is the main image. Accepted: JPG, PNG, WEBP · Max 5 MB · Best: 800×800 px
+        </p>
+
+        <div class="img-upload-grid">
+          {% for slot in range(1, 7) %}
+          {% set existing = existing_imgs[slot-1] if existing_imgs|length >= slot else None %}
+          <div class="img-upload-slot" id="slot-wrap-{{ slot }}">
+
+            <!-- Preview box -->
+            <div class="img-slot-preview" id="preview{{ slot }}">
+              {% if existing %}
+              <img src="{{ img_url(existing) }}"
+                   alt="Image {{ slot }}"
+                   style="width:100%;height:100%;object-fit:contain;border-radius:6px;background:#f8f9fa;padding:4px">
+              {% else %}
+              <div class="img-slot-empty">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+                </svg>
+                <span>Add {{ slot }}</span>
+              </div>
+              {% endif %}
+            </div>
+
+            <!-- Replace / Upload button -->
+            <label class="img-action-btn img-replace-btn" for="file{{ slot }}">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              {% if existing %}Replace{% else %}Upload{% endif %}
+            </label>
+            <input type="file" id="file{{ slot }}" name="image_{{ slot }}"
+                   accept=".jpg,.jpeg,.png,.webp"
+                   onchange="previewImg(this,'preview{{ slot }}','file{{ slot }}')"
+                   style="display:none" form="editForm">
+
+            <!-- Remove button (only if image exists) -->
+            {% if existing %}
+            <form method="post" action="{{ url_for('admin_delete_image', pid=p['id'], slot=slot) }}"
+                  onsubmit="return confirm('Remove image {{ slot }}?')"
+                  style="width:100%">
+              <button type="submit" class="img-action-btn img-remove-btn">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                  <path d="M10 11v6"/><path d="M14 11v6"/>
+                </svg>
+                Remove
+              </button>
+            </form>
+            {% else %}
+            <div style="height:26px"></div>
+            {% endif %}
+
+            <div class="img-slot-num">{{ slot }}{% if slot==1 %} — Main{% endif %}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Save -->
+    <div style="display:flex;gap:.7rem;padding-bottom:2rem">
+      <button type="submit" form="editForm" class="btn btn-primary">💾 Save All Changes</button>
+      <a href="{{ url_for('admin_products') }}" class="btn btn-outline">Cancel</a>
+    </div>
+  </div>
+
+  <!-- ── Right Sidebar ── -->
+  <div>
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-hdr"><h3>Live Preview</h3></div>
+      <div style="padding:1rem">
+        <!-- Main preview image -->
+        <div style="width:100%;aspect-ratio:1;background:#f8f9fa;border-radius:10px;overflow:hidden;
+                    display:flex;align-items:center;justify-content:center;border:1px solid #e5e7eb">
+          {% if existing_imgs %}
+          <img id="mainPreviewImg"
+               src="{{ img_url(existing_imgs[0]) }}"
+               alt="{{ p['name'] }}"
+               style="width:100%;height:100%;object-fit:contain;padding:8px">
+          {% else %}
+          <div id="mainPreviewImg"
+               style="display:flex;flex-direction:column;align-items:center;gap:.5rem;color:#9ca3af">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+            </svg>
+            <span style="font-size:.75rem">No images yet</span>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Thumbnail strip -->
+        {% if existing_imgs|length > 1 %}
+        <div style="display:flex;gap:.35rem;margin-top:.7rem;flex-wrap:wrap">
+          {% for img in existing_imgs %}
+          <div style="width:40px;height:40px;border-radius:5px;overflow:hidden;
+                      border:2px solid #e5e7eb;cursor:pointer;background:#f8f9fa;
+                      display:flex;align-items:center;justify-content:center;
+                      transition:border-color .15s"
+               onclick="setMainPreview('{{ img_url(img) }}')"
+               onmouseover="this.style.borderColor='#2d5016'"
+               onmouseout="this.style.borderColor='#e5e7eb'">
+            <img src="{{ img_url(img) }}"
+                 style="width:100%;height:100%;object-fit:contain;padding:2px">
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <div id="previewName"
+             style="font-size:.82rem;font-weight:600;color:#111827;margin-top:.7rem;line-height:1.3">
+          {{ p['name'] }}
+        </div>
+        <div style="font-size:.68rem;color:#6b7280;margin-top:.2rem">
+          ID #{{ p['id'] }} · {{ p['category'] }}
+        </div>
+        <a href="{{ url_for('product_detail', pid=p['id']) }}" target="_blank"
+           style="font-size:.72rem;color:#2d5016;display:flex;align-items:center;gap:.3rem;margin-top:.5rem">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+          View in store →
+        </a>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-hdr"><h3>Product Stats</h3></div>
+      <div style="padding:1rem;display:flex;flex-direction:column;gap:.6rem">
+        {% for label, val, color in [
+          ('Rating',  p['rating']|string + ' ★', 'inherit'),
+          ('Reviews', '{:,}'.format(p['reviews'] or 0), 'inherit'),
+          ('Stock',   (p['stock'] or 0)|string + ' units',
+           '#dc2626' if (p['stock'] or 0) < 10 else '#15803d'),
+          ('Price',   '₹' + '{:,.0f}'.format(p['price']), 'inherit')
+        ] %}
+        <div style="display:flex;justify-content:space-between;font-size:.8rem">
+          <span style="color:#6b7280">{{ label }}</span>
+          <strong style="color:{{ color }}">{{ val }}</strong>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card" style="border:1px solid #fecaca">
+      <div class="card-hdr"><h3 style="color:#dc2626">Danger Zone</h3></div>
+      <div style="padding:1rem">
+        <p style="font-size:.72rem;color:#6b7280;margin-bottom:.7rem">
+          Permanently deletes product and all images from database.
+        </p>
+        <form method="post" action="{{ url_for('admin_delete_product', pid=p['id']) }}"
+              onsubmit="return confirm('Delete {{ p['name'][:30] }}? This cannot be undone.')">
+          <button class="btn btn-danger" style="width:100%">🗑 Delete Product</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<style>
+/* Option groups */
+.opt-group{display:flex;flex-direction:column;gap:.45rem}
+.opt-label{font-size:.74rem;font-weight:600;color:#374151;display:flex;align-items:center;gap:.4rem;flex-wrap:wrap}
+.opt-required{font-size:.6rem;background:#fef2f2;color:#dc2626;padding:.1rem .4rem;border-radius:20px;font-weight:500}
+.opt-optional{font-size:.6rem;background:#f0fdf4;color:#15803d;padding:.1rem .4rem;border-radius:20px;font-weight:500}
+.opt-saved-badge{font-size:.7rem;background:#ecfdf5;color:#065f46;padding:.2rem .55rem;border-radius:4px;display:inline-block}
+.opt-choices{display:flex;flex-wrap:wrap;gap:.3rem}
+.opt-choice-btn{padding:.28rem .6rem;border:1.5px solid #e5e7eb;border-radius:5px;background:#fff;font-size:.7rem;font-family:inherit;cursor:pointer;transition:all .15s;color:#374151;white-space:nowrap}
+.opt-choice-btn:hover{border-color:#2d5016;color:#2d5016;background:#f0fdf4}
+.opt-choice-btn.selected{background:#2d5016;border-color:#2d5016;color:#fff;font-weight:600}
+.opt-text-input{border:1.5px solid #e5e7eb;border-radius:5px;padding:.38rem .6rem;font-size:.77rem;font-family:inherit;outline:none;transition:border .15s}
+.opt-text-input:focus{border-color:#2d5016;box-shadow:0 0 0 3px rgba(45,80,22,.1)}
+
+/* Image upload grid */
+.img-upload-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:.7rem}
+.img-upload-slot{display:flex;flex-direction:column;gap:.35rem;align-items:center}
+.img-slot-preview{
+  width:100%;aspect-ratio:1;
+  border:2px dashed #d1d5db;border-radius:8px;overflow:hidden;
+  background:#f9fafb;display:flex;align-items:center;justify-content:center;
+}
+.img-slot-preview img{width:100%;height:100%;object-fit:contain;padding:4px;background:#f8f9fa}
+.img-slot-empty{display:flex;flex-direction:column;align-items:center;gap:.3rem;color:#d1d5db;font-size:.6rem}
+.img-action-btn{
+  display:flex;align-items:center;justify-content:center;gap:.28rem;
+  border-radius:5px;font-size:.64rem;font-weight:500;padding:.35rem .4rem;
+  cursor:pointer;width:100%;text-align:center;transition:background .15s;
+  font-family:inherit;border:none;
+}
+.img-replace-btn{background:#1a3010;color:#fff}
+.img-replace-btn:hover{background:#2d5016}
+.img-remove-btn{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
+.img-remove-btn:hover{background:#fee2e2}
+.img-slot-num{font-size:.59rem;color:#6b7280;font-weight:600;text-align:center}
+@media(max-width:900px){.img-upload-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:560px){.img-upload-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+
+<script>
+function selectOpt(key, btn, val) {
+  document.querySelectorAll(`#choices_${key} .opt-choice-btn`).forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  const inp = document.getElementById('opt_' + key);
+  if (inp) inp.value = val;
+}
+function onCatChange(cat) {
+  document.getElementById('customOptsBody') && (document.getElementById('customOptsBody').innerHTML =
+    '<div style="padding:1rem;color:#6b7280;font-size:.82rem">Category changed. Save to see updated options.</div>');
+}
+function previewImg(input, previewId) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  if (file.size > 5 * 1024 * 1024) { alert('Max 5 MB per image.'); input.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wrap = document.getElementById(previewId);
+    wrap.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:contain;border-radius:6px;background:#f8f9fa;padding:4px">`;
+    wrap.style.border = '2px solid #2d5016';
+    if (previewId === 'preview1') setMainPreview(e.target.result);
+  };
+  reader.readAsDataURL(file);
+}
+function setMainPreview(src) {
+  const m = document.getElementById('mainPreviewImg');
+  if (!m) return;
+  if (m.tagName === 'IMG') {
+    m.src = src;
+  } else {
+    // Replace placeholder div with img
+    const img = document.createElement('img');
+    img.id = 'mainPreviewImg';
+    img.src = src;
+    img.style = 'width:100%;height:100%;object-fit:contain;padding:8px';
+    m.parentNode.replaceChild(img, m);
+  }
+}
+</script>
+{% endblock %}

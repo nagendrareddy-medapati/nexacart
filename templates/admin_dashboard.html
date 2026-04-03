@@ -1,0 +1,65 @@
+{% extends "admin_base.html" %}
+{% block title %}Dashboard — Nexacart Admin{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block content %}
+
+<div class="stat-grid">
+  <div class="stat-card green"><div class="stat-label">Total Revenue</div><div class="stat-value">₹{{ "{:,.0f}".format(stats.revenue) }}</div></div>
+  <div class="stat-card"><div class="stat-label">Total Orders</div><div class="stat-value">{{ stats.orders }}</div></div>
+  <div class="stat-card"><div class="stat-label">Registered Users</div><div class="stat-value">{{ stats.users }}</div></div>
+  <div class="stat-card"><div class="stat-label">Products Listed</div><div class="stat-value">{{ stats.products }}</div></div>
+  <div class="stat-card gold"><div class="stat-label">Items in Carts</div><div class="stat-value">{{ stats.cart_items }}</div></div>
+  <div class="stat-card"><div class="stat-label">Reviews</div><div class="stat-value">{{ stats.reviews }}</div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 360px;gap:1.2rem">
+
+<div class="card">
+  <div class="card-hdr"><h3>Recent Orders</h3><a href="{{ url_for('admin_orders') }}" class="btn btn-outline btn-sm">View All</a></div>
+  <table>
+    <tr><th>Order Ref</th><th>Customer</th><th>Total</th><th>Status</th><th>Date</th></tr>
+    {% for o in recent_orders %}
+    <tr>
+      <td><strong>{{ o.order_ref }}</strong></td>
+      <td>{{ o.username }}</td>
+      <td>₹{{ "{:,.0f}".format(o.total) }}</td>
+      <td><span class="badge-status status-{{ o.status|lower }}">{{ o.status }}</span></td>
+      <td>{{ o.created_at[:10] }}</td>
+    </tr>
+    {% else %}<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:2rem">No orders yet</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <div class="card-hdr"><h3>Revenue by Category</h3></div>
+  <table>
+    <tr><th>Category</th><th>Revenue</th></tr>
+    {% for c in cat_revenue %}
+    <tr>
+      <td style="font-size:.78rem">{{ c.category[:22] }}</td>
+      <td>₹{{ "{:,.0f}".format(c.rev) }}</td>
+    </tr>
+    {% else %}<tr><td colspan="2" style="text-align:center;color:#6b7280;padding:2rem">No sales yet</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+</div>
+
+<div class="card" style="margin-top:1.2rem">
+  <div class="card-hdr"><h3>Top Selling Products</h3></div>
+  <table>
+    <tr><th>Product</th><th>Category</th><th>Price</th><th>Rating</th><th>Units Sold</th></tr>
+    {% for p in top_products %}
+    <tr>
+      <td><strong>{{ p.name[:40] }}</strong></td>
+      <td><span style="font-size:.72rem;color:#6b7280">{{ p.category }}</span></td>
+      <td>₹{{ "{:,.0f}".format(p.price) }}</td>
+      <td>⭐ {{ p.rating }}</td>
+      <td><strong>{{ p.sold }}</strong></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

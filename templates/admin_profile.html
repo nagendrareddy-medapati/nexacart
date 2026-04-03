@@ -1,0 +1,143 @@
+{% extends "admin_base.html" %}
+{% block title %}Admin Profile — Nexacart{% endblock %}
+{% block page_title %}Admin Profile{% endblock %}
+{% block content %}
+
+<div style="display:grid;grid-template-columns:300px 1fr;gap:1.4rem;align-items:start">
+
+  <!-- Left: Profile Card -->
+  <div>
+    <div class="card">
+      <div style="padding:2rem;text-align:center;border-bottom:1px solid var(--border)">
+        <div style="width:80px;height:80px;border-radius:50%;background:var(--forest);
+                    display:flex;align-items:center;justify-content:center;
+                    font-size:2rem;margin:0 auto 1rem;box-shadow:0 4px 12px rgba(45,80,22,.3)">
+          ⚙️
+        </div>
+        <div style="font-size:1.1rem;font-weight:700;color:var(--ink)">{{ admin_name }}</div>
+        <div style="font-size:.78rem;color:var(--muted);margin-top:.25rem">System Administrator</div>
+        <div style="margin-top:.8rem;display:inline-flex;align-items:center;gap:.4rem;
+                    background:#dcfce7;color:#166534;font-size:.7rem;font-weight:600;
+                    padding:.25rem .75rem;border-radius:20px">
+          ✓ Active
+        </div>
+      </div>
+      <div style="padding:1.2rem">
+        <div style="font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+                    color:var(--muted);margin-bottom:.8rem">Account Details</div>
+        {% for label, val in [
+          ('Role',     'Super Admin'),
+          ('Access',   'Full CRUD'),
+          ('Panel',    '/admin'),
+          ('Session',  'Active'),
+        ] %}
+        <div style="display:flex;justify-content:space-between;align-items:center;
+                    padding:.5rem 0;border-bottom:1px solid #f3f4f6;font-size:.82rem">
+          <span style="color:var(--muted)">{{ label }}</span>
+          <span style="font-weight:500">{{ val }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Permissions Card -->
+    <div class="card" style="margin-top:1rem">
+      <div class="card-hdr"><h3>🔐 Permissions</h3></div>
+      <div style="padding:1rem">
+        {% for perm in [
+          ('View Dashboard',    True),
+          ('Manage Products',   True),
+          ('Manage Orders',     True),
+          ('Manage Users',      True),
+          ('Upload Images',     True),
+          ('Delete Data',       True),
+          ('View Analytics',    True),
+        ] %}
+        <div style="display:flex;justify-content:space-between;align-items:center;
+                    padding:.4rem 0;font-size:.8rem">
+          <span>{{ perm[0] }}</span>
+          <span style="color:#15803d;font-weight:600">{% if perm[1] %}✓ Allowed{% else %}✗ Denied{% endif %}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Stats + Activity -->
+  <div>
+
+    <!-- Stats Grid -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:1rem;margin-bottom:1.2rem">
+      {% for label, val, icon, color in [
+        ('Total Products', stats.products, '📦', 'var(--forest)'),
+        ('Total Orders',   stats.orders,   '🧾', '#2563eb'),
+        ('Total Users',    stats.users,    '👥', '#7c3aed'),
+        ('Total Reviews',  stats.reviews,  '⭐', '#f59e0b'),
+      ] %}
+      <div class="stat-card" style="text-align:center">
+        <div style="font-size:1.8rem;margin-bottom:.4rem">{{ icon }}</div>
+        <div class="stat-value" style="color:{{ color }};font-size:1.6rem">{{ "{:,}".format(val) }}</div>
+        <div class="stat-label">{{ label }}</div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Revenue card -->
+    <div class="card" style="margin-bottom:1.2rem">
+      <div style="padding:1.4rem;display:flex;align-items:center;gap:1.2rem">
+        <div style="font-size:2.5rem">💰</div>
+        <div>
+          <div style="font-size:.68rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">Total Revenue Managed</div>
+          <div style="font-size:2rem;font-weight:700;color:var(--forest)">₹{{ "{:,.0f}".format(stats.revenue) }}</div>
+          <div style="font-size:.75rem;color:var(--muted);margin-top:.2rem">Across {{ stats.orders }} orders</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="card">
+      <div class="card-hdr"><h3>🕐 Recent Orders Activity</h3></div>
+      <table>
+        <tr>
+          <th>Order Ref</th><th>Amount</th><th>Status</th><th>Date</th>
+        </tr>
+        {% for o in recent_actions %}
+        <tr>
+          <td><code style="font-size:.78rem;background:#f3f4f6;padding:.1rem .35rem;border-radius:3px">{{ o.get('order_ref','—') }}</code></td>
+          <td><strong>₹{{ "{:,.0f}".format(o.get('total',0)) }}</strong></td>
+          <td>
+            <span class="badge-status status-{{ (o.get('status','') or 'confirmed')|lower|replace(' ','') }}">
+              {{ o.get('status','—') }}
+            </span>
+          </td>
+          <td style="font-size:.75rem;color:var(--muted)">{{ o.get('created_at','—') }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" style="text-align:center;padding:1.5rem;color:var(--muted)">No orders yet</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+
+    <!-- Admin Tips -->
+    <div class="card" style="margin-top:1rem;border-left:4px solid var(--gold)">
+      <div class="card-hdr"><h3>💡 Quick Guide</h3></div>
+      <div style="padding:1rem;font-size:.82rem;line-height:1.8;color:var(--ink)">
+        <strong>Products</strong> → Add/edit/delete products. Upload up to 6 images per product stored in MongoDB GridFS.<br>
+        <strong>Orders</strong> → View and update order statuses (Confirmed → Processing → Shipped → Delivered).<br>
+        <strong>Users</strong> → View registered customers and their order history.<br>
+        <strong>Images</strong> → Stored in MongoDB <code style="background:#f3f4f6;padding:.1rem .3rem;border-radius:3px">product_images</code> collection. Served via <code style="background:#f3f4f6;padding:.1rem .3rem;border-radius:3px">/img/&lt;id&gt;/&lt;slot&gt;</code>.<br>
+        <strong>Store</strong> → Click "View Store" in sidebar to see the customer-facing shop.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<style>
+@media(max-width:768px){
+  div[style*="grid-template-columns:300px"]{
+    grid-template-columns:1fr !important;
+  }
+}
+</style>
+{% endblock %}

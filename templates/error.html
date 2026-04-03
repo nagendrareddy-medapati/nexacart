@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ code }} — Nexacart</title>
+  <link rel="icon" href="/static/favicon.ico">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    .err-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2rem;background:var(--cream)}
+    .err-code{font-family:var(--serif);font-size:6rem;font-weight:700;color:var(--forest);line-height:1;opacity:.15}
+    .err-icon{font-size:3.5rem;margin:-1.5rem 0 1rem}
+    .err-title{font-family:var(--serif);font-size:1.8rem;font-weight:700;color:var(--ink);margin-bottom:.5rem}
+    .err-detail{color:var(--muted);font-size:.9rem;margin-bottom:2rem;max-width:420px}
+    .err-btns{display:flex;gap:.8rem;flex-wrap:wrap;justify-content:center}
+    .err-btn{display:inline-flex;align-items:center;gap:.4rem;padding:.7rem 1.6rem;border-radius:6px;font-size:.85rem;font-weight:500;font-family:var(--body);text-decoration:none;transition:all .2s}
+    .err-btn-primary{background:var(--forest);color:#fff}
+    .err-btn-primary:hover{background:var(--moss)}
+    .err-btn-ghost{border:1.5px solid var(--border);color:var(--ink);background:#fff}
+    .err-btn-ghost:hover{border-color:var(--forest);color:var(--forest)}
+  </style>
+</head>
+<body>
+<div class="err-wrap">
+  <div class="err-code">{{ code }}</div>
+  <div class="err-icon">{% if code==404 %}🔍{% else %}⚡{% endif %}</div>
+  <h1 class="err-title">{{ message }}</h1>
+  <p class="err-detail">{{ detail }}</p>
+  <div class="err-btns">
+    <a href="/home" class="err-btn err-btn-primary">🏠 Go Home</a>
+    <a href="/products" class="err-btn err-btn-ghost">🛍️ Browse Products</a>
+  </div>
+</div>
+</body>
+</html>

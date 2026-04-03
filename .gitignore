@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+venv/
+env/
+.venv/
+.env/
+
+# Environment secrets — NEVER commit
+.env
+*.env
+
+# Database — contains user data, never commit
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Flask sessions
+flask_session/
+
+# node modules
+node_modules/
+

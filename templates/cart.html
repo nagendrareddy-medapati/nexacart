@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Your Cart — Nexacart{% endblock %}
+
+{% block navbar %}
+<nav class="navbar">
+  <div class="nav-brand">
+    <svg class="nav-brand-logo" viewBox="0 0 32 32" fill="none">
+      <circle cx="16" cy="16" r="16" fill="rgba(255,255,255,0.15)"/>
+      <path d="M9 15h14l-1.5 9H10.5L9 15z" fill="rgba(255,255,255,0.25)" stroke="rgba(255,255,255,0.9)" stroke-width="1.2" stroke-linejoin="round"/>
+      <path d="M12 15v-3a4 4 0 0 1 8 0v3" stroke="rgba(255,255,255,0.9)" stroke-width="1.3" stroke-linecap="round" fill="none"/>
+      <circle cx="16" cy="20" r="3.5" fill="#b8882a"/>
+      <text x="16" y="23" text-anchor="middle" font-family="Georgia,serif" font-size="5" font-weight="700" fill="#fff">N</text>
+    </svg>
+    Nexacart
+  </div>
+  <div class="nav-right">
+    <a href="{{ url_for('products') }}" class="nav-back">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      Back to Shop
+    </a>
+    <a href="{{ url_for('logout') }}" class="nav-out">Sign out</a>
+  </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+  <!-- LEFT: items + promo -->
+  <div class="items-col">
+    <div class="col-eyebrow">Review your selection</div>
+    <h1 class="col-title">Your Cart</h1>
+
+    {% if items %}
+      {% for item in items %}
+      <div class="cart-row">
+        <!-- Product image -->
+        <div class="cart-row-img">
+          <img src="{{ img_url(get_img(item['id'])) }}"
+               alt="{{ item['name'] }}" style="width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px solid var(--border)">
+        </div>
+        <div style="flex:1;min-width:0">
+          <div class="row-name">{{ item['name'] }}</div>
+          <div class="row-sub">
+            {{ item['category'] }}
+            {% if item['variant'] %} · <strong>{{ item['variant'] }}</strong>{% endif %}
+          </div>
+          <!-- Qty update form -->
+          <form method="post" action="{{ url_for('update_cart', cart_id=item['cart_id']) }}"
+                style="display:flex;align-items:center;gap:.4rem;margin-top:.4rem">
+            <button type="submit" name="qty" value="{{ [item['quantity']-1, 0]|max }}"
+                    class="qty-btn">−</button>
+            <span class="qty-val">{{ item['quantity'] }}</span>
+            <button type="submit" name="qty" value="{{ [item['quantity']+1, 10]|min }}"
+                    class="qty-btn">+</button>
+          </form>
+        </div>
+        <div style="text-align:right">
+          <div class="row-price">₹{{ "{:,.0f}".format(item['price'] * item['quantity']) }}</div>
+          {% if item['quantity'] > 1 %}
+          <div style="font-size:.7rem;color:var(--muted)">₹{{ "{:,.0f}".format(item['price']) }} each</div>
+          {% endif %}
+        </div>
+        <a href="{{ url_for('remove_from_cart', cart_id=item['cart_id']) }}"
+           class="row-remove" title="Remove">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </a>
+      </div>
+      {% endfor %}
+
+      <!-- Promo code -->
+      <div class="promo-section">
+        <div class="promo-label">Have a promo code?</div>
+        {% if promo_msg %}<div class="success-box">🎉 {{ promo_msg }}</div>{% endif %}
+        {% if promo_error %}<div class="error-box">{{ promo_error }}</div>{% endif %}
+        {% if applied_code %}
+          <div class="promo-applied">
+            <span>🎉 <strong>{{ applied_code }}</strong> — {{ discount_pct }}% discount applied</span>
+            <a href="{{ url_for('remove_promo') }}" class="promo-remove">Remove</a>
+          </div>
+        {% else %}
+          <form method="post" class="promo-form">
+            <input type="text" name="promo_code" class="promo-input"
+                   placeholder="ENTER CODE" value="{{ request.form.get('promo_code','') }}" maxlength="20">
+            <button type="submit" class="promo-btn">Apply</button>
+          </form>
+          <div class="promo-hint">Try: SAVE10 · MARKET20 · TECH15 · WELCOME5</div>
+        {% endif %}
+        <!-- Show all available promos -->
+        <details style="margin-top:.8rem">
+          <summary style="font-size:.72rem;color:var(--forest);cursor:pointer;font-weight:500">View all promo codes</summary>
+          <div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.6rem">
+            {% for code, pct in available_promos.items() %}
+            <span style="background:var(--parchment);border:1px dashed var(--border);border-radius:4px;font-size:.7rem;font-family:'Courier New',monospace;padding:.2rem .6rem;cursor:pointer"
+                  onclick="document.querySelector('.promo-input').value='{{ code }}'">
+              {{ code }} — {{ pct }}% off
+            </span>
+            {% endfor %}
+          </div>
+        </details>
+      </div>
+
+    {% else %}
+      <div class="empty-wrap">
+        <div class="empty-icon">🧺</div>
+        <div class="empty-title">Your basket is empty.</div>
+        <div class="empty-sub">Looks like you haven't added anything yet.</div>
+        <a href="{{ url_for('products') }}" class="btn-ghost">Browse the Shop</a>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- RIGHT: order summary -->
+  <div class="summary-col">
+    <div class="sum-title">Order Summary</div>
+
+    <div class="sum-line">
+      <span>Subtotal ({{ items|length }} item{{ 's' if items|length != 1 else '' }})</span>
+      <span class="val">₹{{ "{:,.0f}".format(subtotal) }}</span>
+    </div>
+    {% if discount_pct > 0 %}
+    <div class="sum-line discount">
+      <span>Promo ({{ applied_code }} −{{ discount_pct }}%)</span>
+      <span class="val">−₹{{ "{:,.0f}".format(discount_amt) }}</span>
+    </div>
+    <div class="sum-line">
+      <span>After discount</span>
+      <span class="val">₹{{ "{:,.0f}".format(discounted) }}</span>
+    </div>
+    {% endif %}
+    <div class="sum-line">
+      <span>Delivery</span>
+      <span class="val" style="color:var(--moss)">Free</span>
+    </div>
+    <div class="sum-line">
+      <span>GST (9%)</span>
+      <span class="val">₹{{ "{:,.0f}".format(gst_amt) }}</span>
+    </div>
+    <div class="sum-total">
+      <span class="sum-total-lbl">Total payable</span>
+      <span class="sum-total-val">₹{{ "{:,.0f}".format(grand_total) }}</span>
+    </div>
+
+    {% if items %}
+      <a href="{{ url_for('checkout') }}" class="checkout-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Proceed to Checkout ⚡
+      </a>
+    {% else %}
+      <button class="checkout-btn" disabled>Add items to checkout</button>
+    {% endif %}
+
+    <a href="{{ url_for('products') }}" class="continue-shop">← Continue shopping</a>
+    <div class="sum-spacer"></div>
+    <div class="trust-row">
+      <div class="trust-item">Payments secured by Stripe</div>
+      <div class="trust-item">Free & fast delivery</div>
+      <div class="trust-item">Easy 30-day returns</div>
+    </div>
+  </div>
+
+</div>
+
+<style>
+.cart-row{display:flex;align-items:flex-start;gap:.8rem;padding:1rem 0;border-bottom:1px solid var(--border)}
+.cart-row-img{flex-shrink:0}
+.qty-btn{width:26px;height:26px;border:1.5px solid var(--border);border-radius:4px;background:#fff;font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;padding:0}
+.qty-btn:hover{border-color:var(--forest);color:var(--forest)}
+.qty-val{min-width:24px;text-align:center;font-size:.85rem;font-weight:600}
+</style>
+{% endblock %}

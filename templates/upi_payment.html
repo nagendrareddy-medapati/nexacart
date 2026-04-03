@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+{% block title %}Pay via UPI — Nexacart{% endblock %}
+
+{% block navbar %}
+<nav class="navbar">
+  <div class="nav-brand">
+    <svg class="nav-brand-logo" viewBox="0 0 32 32" fill="none">
+      <circle cx="16" cy="16" r="16" fill="rgba(255,255,255,0.15)"/>
+      <path d="M9 15h14l-1.5 9H10.5L9 15z" fill="rgba(255,255,255,0.25)" stroke="rgba(255,255,255,0.9)" stroke-width="1.2" stroke-linejoin="round"/>
+      <path d="M12 15v-3a4 4 0 0 1 8 0v3" stroke="rgba(255,255,255,0.9)" stroke-width="1.3" stroke-linecap="round" fill="none"/>
+      <circle cx="16" cy="20" r="3.5" fill="#b8882a"/>
+      <text x="16" y="23" text-anchor="middle" font-family="Georgia,serif" font-size="5" font-weight="700" fill="#fff">N</text>
+    </svg>
+    Nexacart
+  </div>
+  <div class="nav-right">
+    <a href="{{ url_for('checkout') }}" class="nav-back">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      Back
+    </a>
+    <a href="{{ url_for('logout') }}" class="nav-out">Sign out</a>
+  </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="upi-wrap">
+
+  <!-- LEFT: UPI payment panel -->
+  <div class="upi-left">
+    <div class="upi-header">
+      <div class="upi-badge">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        100% Secure UPI Payment
+      </div>
+      <h1 class="upi-title">Pay ₹{{ "{:,.0f}".format(grand_total) }}</h1>
+      <p class="upi-sub">via any UPI app on your phone</p>
+    </div>
+
+    <!-- UPI App Buttons -->
+    <div class="upi-apps-label">Choose your UPI app</div>
+    <div class="upi-apps-grid">
+
+      <button class="upi-app-btn" onclick="selectUpiApp(this,'Google Pay','gpay')">
+        <div class="upi-app-icon-wrap">
+          <img src="{{ url_for('static', filename='assets/upi/gpay.png') }}"
+               alt="Google Pay" class="upi-real-icon"
+               onerror="this.parentNode.innerHTML='<div class=upi-icon-fallback style=background:linear-gradient(135deg,#4285f4,#34a853)>G</div>'">
+        </div>
+        <span>Google Pay</span>
+      </button>
+
+      <button class="upi-app-btn" onclick="selectUpiApp(this,'PhonePe','phonepe')">
+        <div class="upi-app-icon-wrap">
+          <img src="{{ url_for('static', filename='assets/upi/phonepe.png') }}"
+               alt="PhonePe" class="upi-real-icon"
+               onerror="this.parentNode.innerHTML='<div class=upi-icon-fallback style=background:linear-gradient(135deg,#5f259f,#7b2fbf)>Pe</div>'">
+        </div>
+        <span>PhonePe</span>
+      </button>
+
+      <button class="upi-app-btn" onclick="selectUpiApp(this,'Paytm','paytm')">
+        <div class="upi-app-icon-wrap">
+          <img src="{{ url_for('static', filename='assets/upi/paytm.png') }}"
+               alt="Paytm" class="upi-real-icon"
+               onerror="this.parentNode.innerHTML='<div class=upi-icon-fallback style=background:linear-gradient(135deg,#00baf2,#0096d0)>P</div>'">
+        </div>
+        <span>Paytm</span>
+      </button>
+
+      <button class="upi-app-btn" onclick="selectUpiApp(this,'BHIM UPI','bhim')">
+        <div class="upi-app-icon-wrap">
+          <img src="{{ url_for('static', filename='assets/upi/bhim.png') }}"
+               alt="BHIM" class="upi-real-icon"
+               onerror="this.parentNode.innerHTML='<div class=upi-icon-fallback style=background:linear-gradient(135deg,#ff6f00,#f57c00)>B</div>'">
+        </div>
+        <span>BHIM</span>
+      </button>
+
+      <button class="upi-app-btn" onclick="selectUpiApp(this,'Amazon Pay','amazonpay')">
+        <div class="upi-app-icon-wrap">
+          <img src="{{ url_for('static', filename='assets/upi/amazon_pay.png') }}"
+               alt="Amazon Pay" class="upi-real-icon"
+               onerror="this.parentNode.innerHTML='<div class=upi-icon-fallback style=background:linear-gradient(135deg,#ff9900,#e88a00)>a</div>'">
+        </div>
+        <span>Amazon Pay</span>
+      </button>
+
+      <button class="upi-app-btn" onclick="selectUpiApp(this,'Other UPI','upi')">
+        <div class="upi-app-icon-wrap">
+          <img src="{{ url_for('static', filename='assets/upi/other_upi.png') }}"
+               alt="Other UPI" class="upi-real-icon"
+               onerror="this.parentNode.innerHTML='<div class=upi-icon-fallback style=background:linear-gradient(135deg,#2d5016,#4a7c2b)>UPI</div>'">
+        </div>
+        <span>Other UPI</span>
+      </button>
+
+    </div>
+
+    <!-- UPI ID display -->
+    <div class="upi-id-box">
+      <div class="upi-id-label">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+        Pay to UPI ID
+      </div>
+      <div class="upi-id-value" id="upiIdDisplay">{{ merchant_upi }}</div>
+      <div class="upi-id-name">{{ merchant_name }}</div>
+      <button class="upi-copy-btn" onclick="copyUpiId()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Copy UPI ID
+      </button>
+    </div>
+
+    <!-- QR Code section -->
+    <div class="upi-qr-box">
+      <div class="upi-qr-label">Or scan QR code</div>
+      <div class="upi-qr-img" id="upiQrImg">
+        <!-- QR generated via API -->
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=upi://pay?pa={{ merchant_upi }}&pn={{ merchant_name }}&am={{ grand_total }}&cu=INR&tn=Nexacart+Order"
+             alt="UPI QR Code" width="160" height="160" style="border-radius:8px"
+             onerror="this.style.display='none';document.getElementById('qrFallback').style.display='block'">
+        <div id="qrFallback" style="display:none;padding:1rem;text-align:center;font-size:.8rem;color:var(--muted)">
+          QR not available. Use the UPI ID above.
+        </div>
+      </div>
+      <div class="upi-qr-amount">₹{{ "{:,.0f}".format(grand_total) }}</div>
+      <div class="upi-qr-hint">Open any UPI app → Scan → Pay</div>
+    </div>
+
+    <!-- Steps -->
+    <div class="upi-steps">
+      <div class="upi-step">
+        <div class="upi-step-num">1</div>
+        <div class="upi-step-text">Open your UPI app (GPay, PhonePe, Paytm)</div>
+      </div>
+      <div class="upi-step">
+        <div class="upi-step-num">2</div>
+        <div class="upi-step-text">Scan QR code or enter UPI ID</div>
+      </div>
+      <div class="upi-step">
+        <div class="upi-step-num">3</div>
+        <div class="upi-step-text">Pay exactly ₹{{ "{:,.0f}".format(grand_total) }}</div>
+      </div>
+      <div class="upi-step">
+        <div class="upi-step-num">4</div>
+        <div class="upi-step-text">Enter Transaction ID below & confirm</div>
+      </div>
+    </div>
+
+    <!-- Confirm payment form -->
+    <div class="upi-confirm-box">
+      <div class="upi-confirm-title">Confirm Your Payment</div>
+      <p class="upi-confirm-sub">After completing payment, enter your UPI Transaction ID to confirm your order.</p>
+
+      <form method="post" action="{{ url_for('upi_verify') }}" id="upiConfirmForm">
+        <input type="hidden" name="upi_app" id="upiAppInput" value="UPI">
+
+        <div class="field">
+          <label>UPI App Used</label>
+          <div class="upi-selected-app" id="selectedAppDisplay">
+            <span style="color:var(--muted)">Select an app above first</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="upi_txn_id">UPI Transaction ID / UTR Number <span class="req-star">*</span></label>
+          <input type="text" id="upi_txn_id" name="upi_txn_id"
+                 placeholder="e.g. 412345678901 or T2406241234567"
+                 required style="text-transform:uppercase">
+          <div class="field-hint">Find this in your UPI app under payment history / receipts.</div>
+        </div>
+
+        <button type="submit" class="upi-confirm-btn" id="upiConfirmBtn" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Confirm Payment & Place Order
+        </button>
+      </form>
+
+      <div class="upi-confirm-note">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Your order will be confirmed after payment verification (usually instant).
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT: Order summary -->
+  <div class="order-col">
+    <div class="order-title">Order Summary</div>
+    {% for item in items %}
+    <div class="order-item">
+      <div class="order-item-icon">
+        <img src="{{ img_url(get_img(item['id'])) }}"
+             alt="" style="width:36px;height:36px;object-fit:cover;border-radius:4px">
+      </div>
+      <div class="order-item-name">
+        {{ item['name'][:32] }}{% if item['name']|length>32 %}…{% endif %}
+        {% if item['quantity']>1 %}<br><small style="color:var(--muted)">×{{ item['quantity'] }}</small>{% endif %}
+      </div>
+      <div class="order-item-price">₹{{ "{:,.0f}".format(item['price']*item['quantity']) }}</div>
+    </div>
+    {% endfor %}
+    <div class="order-sum">
+      <div class="order-sum-line"><span>Subtotal</span><span class="v">₹{{ "{:,.0f}".format(subtotal) }}</span></div>
+      {% if discount_pct > 0 %}
+      <div class="order-sum-line disc"><span>Promo ({{ applied_code }})</span><span class="v">−₹{{ "{:,.0f}".format(discount_amt) }}</span></div>
+      {% endif %}
+      <div class="order-sum-line"><span>GST (9%)</span><span class="v">₹{{ "{:,.0f}".format(gst_amt) }}</span></div>
+      <div class="order-sum-line"><span>Delivery</span><span class="v" style="color:var(--moss)">Free</span></div>
+    </div>
+    <div class="order-total">
+      <span class="order-total-lbl">Total to Pay</span>
+      <span class="order-total-val">₹{{ "{:,.0f}".format(grand_total) }}</span>
+    </div>
+
+    <!-- UPI logos -->
+    <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border)">
+      <div style="font-size:.68rem;color:var(--muted);text-align:center;margin-bottom:.6rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase">Accepted UPI Apps</div>
+      <div style="display:flex;justify-content:center;gap:.6rem;flex-wrap:wrap;align-items:center">
+        {% for app,icon in [('GPay','gpay'),('PhonePe','phonepe'),('Paytm','paytm'),('BHIM','bhim'),('Amazon Pay','amazon_pay')] %}
+        <div style="display:flex;flex-direction:column;align-items:center;gap:.2rem">
+          <img src="{{ url_for('static', filename='assets/upi/' + icon + '.png') }}"
+               alt="{{ app }}" style="width:30px;height:30px;border-radius:7px;object-fit:cover"
+               onerror="this.style.display='none'">
+          <span style="font-size:.58rem;color:var(--muted)">{{ app }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const UPI_ID   = "{{ merchant_upi }}";
+let selectedApp = null;
+
+function selectUpiApp(btn, name, key) {
+  document.querySelectorAll('.upi-app-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  selectedApp = name;
+  document.getElementById('upiAppInput').value = name;
+  document.getElementById('selectedAppDisplay').innerHTML =
+    `<strong style="color:var(--forest)">${name}</strong> selected`;
+  document.getElementById('upiConfirmBtn').disabled = false;
+}
+
+function copyUpiId() {
+  navigator.clipboard.writeText(UPI_ID).then(() => {
+    const btn = document.querySelector('.upi-copy-btn');
+    btn.textContent = '✓ Copied!';
+    btn.style.background = 'var(--moss)';
+    setTimeout(() => { btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy UPI ID`; btn.style.background = ''; }, 2500);
+  });
+}
+
+// Auto uppercase txn ID
+document.getElementById('upi_txn_id').addEventListener('input', function() {
+  this.value = this.value.toUpperCase();
+});
+</script>
+{% endblock %}

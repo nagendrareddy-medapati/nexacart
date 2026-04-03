@@ -1,0 +1,36 @@
+{% extends "admin_base.html" %}
+{% block title %}Orders — Admin{% endblock %}
+{% block page_title %}Orders{% endblock %}
+{% block content %}
+<div style="display:flex;gap:.5rem;margin-bottom:1.2rem;flex-wrap:wrap">
+  {% for s in ["","Confirmed","Processing","Shipped","Delivered","Cancelled"] %}
+  <a href="{{ url_for('admin_orders', status=s) }}" class="btn {% if status==s %}btn-primary{% else %}btn-outline{% endif %} btn-sm">
+    {{ s or "All" }}
+  </a>{% endfor %}
+</div>
+<div class="card">
+  <table>
+    <tr><th>Order Ref</th><th>Customer</th><th>Total</th><th>Promo</th><th>Status</th><th>Date</th><th>Action</th></tr>
+    {% for o in orders %}
+    <tr>
+      <td><strong>{{ o['order_ref'] }}</strong></td>
+      <td>{{ o['username'] }}</td>
+      <td>₹{{ "{:,.0f}".format(o['total']) }}</td>
+      <td>{% if o['promo_code'] %}<code style="font-size:.72rem;background:#f3f4f6;padding:.1rem .4rem;border-radius:3px">{{ o['promo_code'] }}</code>{% else %}—{% endif %}</td>
+      <td><span class="badge-status status-{{ o['status']|lower }}">{{ o['status'] }}</span></td>
+      <td>{{ o['created_at'][:10] }}</td>
+      <td>
+        <form method="post" action="{{ url_for('admin_update_order', oid=o['id']) }}" style="display:flex;gap:.3rem">
+          <select name="status" style="font-size:.75rem;padding:.25rem .4rem;border:1px solid #e5e7eb;border-radius:4px">
+            {% for s in ["Confirmed","Processing","Shipped","Delivered","Cancelled"] %}
+            <option {% if o['status']==s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+          </select>
+          <button class="btn btn-primary btn-sm">Update</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}<tr><td colspan="7" style="text-align:center;padding:2rem;color:#6b7280">No orders found</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

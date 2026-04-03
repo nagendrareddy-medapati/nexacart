@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}My Wishlist — Nexacart{% endblock %}
+{% block navbar %}
+<nav class="navbar">
+  <div class="nav-brand">
+        <svg class="nav-brand-logo" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="16" cy="16" r="16" fill="rgba(255,255,255,0.15)"/>
+          <path d="M9 15h14l-1.5 9H10.5L9 15z" fill="rgba(255,255,255,0.25)" stroke="rgba(255,255,255,0.9)" stroke-width="1.2" stroke-linejoin="round"/>
+          <path d="M12 15v-3a4 4 0 0 1 8 0v3" stroke="rgba(255,255,255,0.9)" stroke-width="1.3" stroke-linecap="round" fill="none"/>
+          <circle cx="16" cy="20" r="3.5" fill="#b8882a"/>
+          <text x="16" y="23" text-anchor="middle" font-family="Georgia,serif" font-size="5" font-weight="700" fill="#fff">N</text>
+        </svg>
+        Nexacart
+      </div>
+  <div class="nav-right">
+    <a href="{{ url_for('home') }}" class="nav-back">🏠 Home</a>
+    <a href="{{ url_for('products') }}" class="nav-back">🛍️ Shop</a>
+    <a href="{{ url_for('cart') }}" class="nav-cart">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+      Cart {% if cart_count > 0 %}<span class="cart-pill">{{ cart_count }}</span>{% endif %}
+    </a>
+    <a href="{{ url_for('logout') }}" class="nav-out">Sign out</a>
+  </div>
+</nav>
+{% endblock %}
+{% block content %}
+<div class="inner-page">
+  <div class="inner-page-header">
+    <h1 class="inner-page-title">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      My Wishlist
+    </h1>
+    <span class="inner-page-count">{{ items|length }} item{{ 's' if items|length != 1 else '' }}</span>
+  </div>
+
+  {% if items %}
+  <div class="products-grid">
+    {% for p in items %}
+    <div class="product-card">
+      {% if p['badge'] %}<div class="card-badge badge-{{ p['badge']|lower|replace(' ','') }}">{{ p['badge'] }}</div>{% endif %}
+      <a href="{{ url_for('toggle_wishlist', pid=p['id']) }}" class="wishlist-remove-btn" title="Remove from wishlist">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="#e91e63" stroke="#e91e63" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      </a>
+      <div class="card-thumb"><img src="{{ img_url(get_img(p['id'])) }}" alt="{{ p['name'] }}" loading="lazy"></div>
+      <div class="card-body">
+        <div class="card-cat">{{ p['category'] }}</div>
+        <div class="card-name">{{ p['name'] }}</div>
+        <div class="card-stars">{{ '★' * (p['rating']|int) }}{{ '☆' * (5-p['rating']|int) }} <span class="card-reviews">({{ p['reviews'] }})</span></div>
+        <div class="card-price"><sub>&#8377;</sub>{{ "{:,.0f}".format(p['price']) }}</div>
+        <a href="{{ url_for('add_to_cart', pid=p['id']) }}" class="card-add">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add to Cart
+        </a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="inner-empty">
+    <div class="inner-empty-icon">💔</div>
+    <div class="inner-empty-title">Your wishlist is empty</div>
+    <div class="inner-empty-sub">Save items you love by clicking the heart icon on any product.</div>
+    <a href="{{ url_for('products') }}" class="btn-primary" style="max-width:220px;margin:1.5rem auto 0">Browse Products</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

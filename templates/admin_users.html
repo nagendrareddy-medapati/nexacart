@@ -1,0 +1,70 @@
+{% extends "admin_base.html" %}
+{% block title %}Users — Admin{% endblock %}
+{% block page_title %}Users ({{ users|length }}){% endblock %}
+{% block content %}
+
+<!-- Users Table -->
+<div class="card">
+  <div class="card-hdr" style="display:flex;align-items:center;justify-content:space-between">
+    <h3>All Registered Users</h3>
+    <div style="font-size:.72rem;color:#6b7280">
+      Customers: <strong>{{ users|selectattr('role','equalto','customer')|list|length }}</strong>
+      &nbsp;·&nbsp;
+      Admins: <strong>{{ users|selectattr('role','equalto','admin')|list|length }}</strong>
+    </div>
+  </div>
+  <div style="overflow-x:auto">
+  <table>
+    <tr>
+      <th>#</th>
+      <th>Username</th>
+      <th>Account Type</th>
+      <th>Email</th>
+      <th>Phone</th>
+      <th>City</th>
+      <th>Orders</th>
+      <th>Total Spent</th>
+      <th>Joined</th>
+    </tr>
+    {% for u in users %}
+    <tr>
+      <td style="color:#6b7280;font-size:.78rem">{{ u['id'] }}</td>
+      <td>
+        <strong>{{ u['username'] }}</strong>
+        {% if u['is_verified'] %}
+        <span title="Verified" style="color:#22c55e;font-size:.8rem">✓</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if u['role'] == 'admin' %}
+        <span style="display:inline-flex;align-items:center;gap:.3rem;background:#fef3c7;color:#92400e;font-size:.68rem;font-weight:700;padding:.2rem .55rem;border-radius:20px;letter-spacing:.06em">
+          ⚙️ ADMIN
+        </span>
+        {% else %}
+        <span style="display:inline-flex;align-items:center;gap:.3rem;background:#f0fdf4;color:#15803d;font-size:.68rem;font-weight:700;padding:.2rem .55rem;border-radius:20px;letter-spacing:.06em">
+          🛍️ BUYER
+        </span>
+        {% endif %}
+      </td>
+      <td style="font-size:.82rem">{{ u['email'] or '—' }}</td>
+      <td style="font-size:.82rem">{{ u['phone'] or '—' }}</td>
+      <td style="font-size:.82rem">{{ u['city'] or '—' }}</td>
+      <td style="text-align:center">
+        <strong>{{ u['order_count'] }}</strong>
+      </td>
+      <td>
+        <strong style="color:{% if u['total_spent'] > 10000 %}#15803d{% else %}inherit{% endif %}">
+          ₹{{ "{:,.0f}".format(u['total_spent']) }}
+        </strong>
+      </td>
+      <td style="font-size:.75rem;color:#6b7280;white-space:nowrap">
+        {{ u['joined'] or '—' }}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="9" style="text-align:center;padding:2.5rem;color:#6b7280">No users yet</td></tr>
+    {% endfor %}
+  </table>
+  </div>
+</div>
+{% endblock %}

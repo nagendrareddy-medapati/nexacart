@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Gift Cards — Nexacart{% endblock %}
+{% block navbar %}
+<nav class="navbar">
+  <div class="nav-brand">
+        <svg class="nav-brand-logo" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="16" cy="16" r="16" fill="rgba(255,255,255,0.15)"/>
+          <path d="M9 15h14l-1.5 9H10.5L9 15z" fill="rgba(255,255,255,0.25)" stroke="rgba(255,255,255,0.9)" stroke-width="1.2" stroke-linejoin="round"/>
+          <path d="M12 15v-3a4 4 0 0 1 8 0v3" stroke="rgba(255,255,255,0.9)" stroke-width="1.3" stroke-linecap="round" fill="none"/>
+          <circle cx="16" cy="20" r="3.5" fill="#b8882a"/>
+          <text x="16" y="23" text-anchor="middle" font-family="Georgia,serif" font-size="5" font-weight="700" fill="#fff">N</text>
+        </svg>
+        Nexacart
+      </div>
+  <div class="nav-right">
+    <a href="{{ url_for('home') }}" class="nav-back">🏠 Home</a>
+    <a href="{{ url_for('cart') }}" class="nav-cart">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+      Cart {% if cart_count > 0 %}<span class="cart-pill">{{ cart_count }}</span>{% endif %}
+    </a>
+    <a href="{{ url_for('logout') }}" class="nav-out">Sign out</a>
+  </div>
+</nav>
+{% endblock %}
+{% block content %}
+<div class="inner-page">
+  <div class="inner-page-header">
+    <h1 class="inner-page-title">🎁 Gift Cards</h1>
+  </div>
+
+  <div class="gift-hero">
+    <div class="gift-card-visual">
+      <div class="gcv-top"><span class="nb-dot" style="width:8px;height:8px"></span> Nexacart</div>
+      <div class="gcv-amount">₹500 – ₹10,000</div>
+      <div class="gcv-tag">GIFT CARD</div>
+    </div>
+    <div class="gift-info">
+      <h2>Send Joy, Instantly</h2>
+      <p>Nexacart Gift Cards are perfect for any occasion. Recipients can use them to shop across all 30 categories.</p>
+      <ul class="gift-features">
+        <li>✓ Valid for 1 year from purchase</li>
+        <li>✓ Works on all products</li>
+        <li>✓ Instant digital delivery</li>
+        <li>✓ No expiry on balance</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="gift-amounts">
+    <h3>Choose Amount</h3>
+    <div class="gift-amount-grid">
+      {% for amt in [500, 1000, 2000, 5000, 10000] %}
+      <button class="gift-amt-btn" onclick="selectAmount({{ amt }}, this)">&#8377;{{ "{:,}".format(amt) }}</button>
+      {% endfor %}
+    </div>
+    <div class="gift-form">
+      <div class="field"><label>Recipient Name</label><input type="text" placeholder="Enter name"></div>
+      <div class="field"><label>Recipient Email</label><input type="email" placeholder="email@example.com"></div>
+      <div class="field"><label>Personal Message (optional)</label><input type="text" placeholder="Happy Birthday! 🎉"></div>
+      <button class="btn-primary" style="max-width:260px" onclick="alert('Gift card feature coming soon! 🎁')">Send Gift Card</button>
+    </div>
+  </div>
+
+  <div class="gift-redeem">
+    <h3>Redeem a Gift Card</h3>
+    <div style="display:flex;gap:.8rem;max-width:400px">
+      <input type="text" placeholder="Enter gift card code" style="flex:1">
+      <button class="promo-btn" onclick="alert('Gift card redemption coming soon!')">Apply</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function selectAmount(amt, btn) {
+  document.querySelectorAll('.gift-amt-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+</script>
+{% endblock %}

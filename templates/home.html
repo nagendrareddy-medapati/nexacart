@@ -1,0 +1,917 @@
+{% extends "base.html" %}
+{% block title %}Home — Nexacart{% endblock %}
+
+{% block navbar %}
+<nav class="navbar">
+  <div class="nav-brand">
+        <svg class="nav-brand-logo" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="16" cy="16" r="16" fill="rgba(255,255,255,0.15)"/>
+          <path d="M9 15h14l-1.5 9H10.5L9 15z" fill="rgba(255,255,255,0.25)" stroke="rgba(255,255,255,0.9)" stroke-width="1.2" stroke-linejoin="round"/>
+          <path d="M12 15v-3a4 4 0 0 1 8 0v3" stroke="rgba(255,255,255,0.9)" stroke-width="1.3" stroke-linecap="round" fill="none"/>
+          <circle cx="16" cy="20" r="3.5" fill="#b8882a"/>
+          <text x="16" y="23" text-anchor="middle" font-family="Georgia,serif" font-size="5" font-weight="700" fill="#fff">N</text>
+        </svg>
+        Nexacart
+      </div>
+  <div class="nav-center">
+    <form method="get" action="{{ url_for('products') }}" class="nav-search-form">
+      <svg class="nav-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" name="q" placeholder="Search products, brands…" class="nav-search-input">
+    </form>
+  </div>
+  <div class="nav-right">
+    <a href="{{ url_for('cart') }}" class="nav-cart">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+      Cart {% if cart_count > 0 %}<span class="cart-pill">{{ cart_count }}</span>{% endif %}
+    </a>
+    <div class="profile-menu">
+      <button class="profile-btn" onclick="toggleProfile()">
+        <span class="profile-avatar">{{ username[0].upper() }}</span>
+        <span class="profile-name">{{ username }}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="profile-dropdown" id="profileDropdown">
+
+        <!-- Header -->
+        <div class="pd-header">
+          <div class="pd-avatar">{{ username[0].upper() }}</div>
+          <div>
+            <div class="pd-username">{{ username }}</div>
+            <a href="{{ url_for('register') }}" class="pd-signup">New customer? <strong>Sign Up</strong></a>
+          </div>
+        </div>
+        <div class="pd-divider"></div>
+
+        <!-- Two-column layout -->
+        <div class="pd-body">
+          <!-- Left column -->
+          <div class="pd-col">
+            <a href="{{ url_for('profile') }}" class="pd-item">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              My Profile
+            </a>
+            <a href="{{ url_for('rewards') }}" class="pd-item">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              Nexacart Plus
+            </a>
+            <a href="{{ url_for('orders') }}" class="pd-item">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+              Orders
+            </a>
+            <a href="{{ url_for('wishlist') }}" class="pd-item">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              Wishlist
+              {% if session.get("wishlist") %}<span class="pd-badge">{{ session.get("wishlist",[])|length }}</span>{% endif %}
+            </a>
+          </div>
+          <!-- Right column -->
+          <div class="pd-col">
+            <a href="{{ url_for('rewards') }}" class="pd-item">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+              Rewards
+            </a>
+            <a href="{{ url_for('gift_cards') }}" class="pd-item">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="4" x2="12" y2="12"/></svg>
+              Gift Cards
+            </a>
+            <a href="{{ url_for('notifications') }}" class="pd-item">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              Notifications
+            </a>
+            <a href="{{ url_for('help_page') }}" class="pd-item">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              24×7 Help
+            </a>
+          </div>
+        </div>
+
+        <div class="pd-divider"></div>
+        <div class="pd-footer-row">
+          <a href="#" class="pd-item pd-item-sm" onclick="requestLocation()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span id="location-text">Set Location</span>
+          </a>
+          <a href="{{ url_for('logout') }}" class="pd-item pd-item-sm pd-logout">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Sign Out
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<!-- Location bar -->
+<div class="location-bar" id="locationBar" style="display:none">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+  Delivering to: <strong id="locationText">—</strong>
+  <button onclick="requestLocation()" class="loc-refresh">Update</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     HERO BANNER
+═══════════════════════════════════════════════════════════ -->
+<div class="hero-section">
+  <div class="hero-content">
+    <div class="hero-season-tag">
+      {% if season == 'Summer' %}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        Summer Picks
+      {% elif season == 'Monsoon' %}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 17.58A5 5 0 0 0 18 8h-1.26A8 8 0 1 0 4 16.25"/><line x1="8" y1="19" x2="8" y2="21"/><line x1="8" y1="13" x2="8" y2="15"/><line x1="16" y1="19" x2="16" y2="21"/><line x1="16" y1="13" x2="16" y2="15"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="12" y1="15" x2="12" y2="17"/></svg>
+        Monsoon Essentials
+      {% elif season == 'Winter' %}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Winter Collection
+      {% else %}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Spring Favourites
+      {% endif %}
+    </div>
+    <h1 class="hero-title">Shop Everything<br><span class="hero-accent">You Love</span></h1>
+    <p class="hero-sub">326 products · 30 categories · Best prices guaranteed</p>
+    <div class="hero-actions">
+      <a href="{{ url_for('products') }}" class="hero-btn-primary">Shop Now →</a>
+      <a href="{{ url_for('products', category='Clothing — Women') }}" class="hero-btn-ghost">Trending Fashion</a>
+    </div>
+    <div class="hero-promos">
+      <span class="hero-promo-chip">SAVE10 — 10% off</span>
+      <span class="hero-promo-chip">FASHION30 — 30% off fashion</span>
+      <span class="hero-promo-chip">BEAUTY15 — 15% off beauty</span>
+    </div>
+  </div>
+  <div class="hero-visual">
+    <div class="hero-cards">
+      {% for p in trending[:4] %}
+      <div class="hero-card hero-card-{{ loop.index }}">
+        <img src="{{ img_url(get_img(p['id'])) }}" alt="{{ p['name'] }}" class="hero-card-img">
+        <span class="hero-card-name">{{ p['name'][:22] }}{% if p['name']|length > 22 %}…{% endif %}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ INLINE CATEGORY PRODUCTS + FILTERS ═══════════════════ -->
+{% if active_cat %}
+<section class="cat-filter-section" id="catProductsSection">
+
+  <!-- Header bar -->
+  <div class="cfs-header">
+    <div class="cfs-title-row">
+      <h2 class="cfs-title">
+        {% if active_cat == 'All' %}🏪 All Products
+        {% elif active_cat in cat_meta %}{{ cat_meta[active_cat][0] }} {{ active_cat }}
+        {% else %}{{ active_cat }}{% endif %}
+      </h2>
+      <span class="cfs-count">{{ cat_products|length }} result{{ 's' if cat_products|length != 1 }}</span>
+      <a href="{{ url_for('home') }}" class="cfs-clear">✕ Clear</a>
+    </div>
+    <!-- Mobile filter toggle -->
+    <button class="cfs-mob-filter-btn" onclick="toggleMobFilter()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+      Filters
+    </button>
+  </div>
+
+  <div class="cfs-body">
+
+    <!-- ── FILTER SIDEBAR ── -->
+    <aside class="cfs-filters" id="cfsFilters">
+      <form method="get" action="{{ url_for('home') }}" id="filterForm">
+        <input type="hidden" name="cat" value="{{ active_cat }}">
+
+        <!-- Sort -->
+        <div class="ff-group">
+          <div class="ff-label">Sort By</div>
+          <div class="ff-radio-list">
+            {% for val, label in [('rating','Top Rated'),('popular','Most Popular'),('price_asc','Price: Low → High'),('price_desc','Price: High → Low'),('name','Name A–Z')] %}
+            <label class="ff-radio">
+              <input type="radio" name="sort_f" value="{{ val }}" {% if sort_f == val %}checked{% endif %} onchange="this.form.submit()">
+              <span>{{ label }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Price Range -->
+        <div class="ff-group">
+          <div class="ff-label">Price Range</div>
+          {% if price_range %}
+          <div class="ff-price-inputs">
+            <div class="ff-price-field">
+              <span>₹</span>
+              <input type="number" name="min_price" placeholder="{{ price_range.min }}"
+                     value="{{ min_price }}" min="0" class="ff-price-input">
+            </div>
+            <span class="ff-price-sep">–</span>
+            <div class="ff-price-field">
+              <span>₹</span>
+              <input type="number" name="max_price" placeholder="{{ price_range.max }}"
+                     value="{{ max_price }}" min="0" class="ff-price-input">
+            </div>
+          </div>
+          <div class="ff-price-presets">
+            {% set ranges = [('Under ₹500','','500'),('₹500–₹2K','500','2000'),('₹2K–₹10K','2000','10000'),('₹10K–₹50K','10000','50000'),('₹50K+','50000','')] %}
+            {% for lbl, mn, mx in ranges %}
+            <button type="button" class="ff-preset {% if min_price==mn and max_price==mx %}active{% endif %}"
+                    onclick="setPrice('{{ mn }}','{{ mx }}')">{{ lbl }}</button>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Min Rating -->
+        <div class="ff-group">
+          <div class="ff-label">Minimum Rating</div>
+          <div class="ff-radio-list">
+            {% for r in ['4.5','4.0','3.5','3.0'] %}
+            <label class="ff-radio">
+              <input type="radio" name="min_rating" value="{{ r }}" {% if min_rating == r %}checked{% endif %} onchange="this.form.submit()">
+              <span>{{ '★' * (r|float|int) }}{% if r|float != r|float|int %}½{% endif %} {{ r }}+</span>
+            </label>
+            {% endfor %}
+            <label class="ff-radio">
+              <input type="radio" name="min_rating" value="" {% if not min_rating %}checked{% endif %} onchange="this.form.submit()">
+              <span>Any Rating</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Brand -->
+        {% if all_brands %}
+        <div class="ff-group">
+          <div class="ff-label">Brand</div>
+          <div class="ff-check-list" id="brandList">
+            {% for brand in all_brands[:12] %}
+            <label class="ff-check">
+              <input type="checkbox" name="brand" value="{{ brand }}"
+                     {% if brand in brands_sel %}checked{% endif %}
+                     onchange="this.form.submit()">
+              <span>{{ brand }}</span>
+            </label>
+            {% endfor %}
+            {% if all_brands|length > 12 %}
+            <button type="button" class="ff-show-more" onclick="toggleBrands(this)">
+              + {{ all_brands|length - 12 }} more
+            </button>
+            <div class="ff-brands-extra" style="display:none">
+              {% for brand in all_brands[12:] %}
+              <label class="ff-check">
+                <input type="checkbox" name="brand" value="{{ brand }}"
+                       {% if brand in brands_sel %}checked{% endif %}
+                       onchange="this.form.submit()">
+                <span>{{ brand }}</span>
+              </label>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Apply / Clear buttons -->
+        <div class="ff-btns">
+          <button type="submit" class="ff-apply-btn">Apply Filters</button>
+          <a href="{{ url_for('home', cat=active_cat) }}" class="ff-clear-btn">Clear All</a>
+        </div>
+
+      </form>
+    </aside>
+
+    <!-- ── PRODUCT GRID ── -->
+    <div class="cfs-products">
+      {% if cat_products %}
+        <div class="products-grid">
+          {% for p in cat_products %}
+          <div class="product-card">
+            {% if p['badge'] %}<div class="card-badge badge-{{ p['badge']|lower|replace(' ','') }}">{{ p['badge'] }}</div>{% endif %}
+            <a href="{{ url_for('product_detail', pid=p['id']) }}" class="card-thumb-link">
+              <div class="card-thumb">
+                <img src="{{ img_url(get_img(p['id'])) }}" alt="{{ p['name'] }}" loading="lazy">
+              </div>
+            </a>
+            <div class="card-body">
+              <div class="card-cat">{{ p['category'] }}</div>
+              <a href="{{ url_for('product_detail', pid=p['id']) }}" class="card-name-link">
+                <div class="card-name">{{ p['name'] }}</div>
+              </a>
+              <div class="card-stars">{{ '★' * (p['rating']|int) }}{{ '☆' * (5-p['rating']|int) }} <span class="card-reviews">({{ p['reviews'] }})</span></div>
+              <div class="card-price"><sub>&#8377;</sub>{{ "{:,.0f}".format(p['price']) }}</div>
+              <div class="card-actions">
+                <a href="{{ url_for('product_detail', pid=p['id']) }}" class="card-view-btn">View Details</a>
+                <a href="{{ url_for('add_to_cart', pid=p['id']) }}" class="card-add">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </a>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% if cat_products|length >= 48 %}
+        <div style="text-align:center;margin-top:2rem">
+          <a href="{{ url_for('products', category=active_cat) }}" class="btn-ghost">
+            View All {{ active_cat }} Products in Full Shop →
+          </a>
+        </div>
+        {% endif %}
+      {% else %}
+        <div class="no-products">
+          <div class="no-products-icon">🔍</div>
+          <div class="no-products-title">No products match your filters</div>
+          <div class="no-products-sub">Try adjusting the price range, rating, or brand filters.</div>
+          <a href="{{ url_for('home', cat=active_cat) }}" class="btn-ghost" style="margin-top:1rem">Reset Filters</a>
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
+</section>
+{% endif %}
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     CATEGORY PILL TAB BAR  (like the reference image)
+═══════════════════════════════════════════════════════════ -->
+<div class="catbar-wrap">
+  <div class="catbar-scroll" id="catbarScroll">
+
+    <!-- For You (All) -->
+    <a href="{{ url_for('products') }}" class="catbar-pill {% if active_cat == 'All' %}active{% endif %}" id="pill-all">
+      <span class="cp-icon">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="14" fill="#fff7e6"/>
+          <path d="M14 7c-3.87 0-7 3.13-7 7s3.13 7 7 7 7-3.13 7-7-3.13-7-7-7z" fill="#b8882a" opacity=".18"/>
+          <path d="M10 14h8M14 10v8" stroke="#b8882a" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="14" cy="14" r="5" stroke="#b8882a" stroke-width="1.6"/>
+        </svg>
+      </span>
+      <span class="cp-label">For You</span>
+    </a>
+
+    <!-- Fashion (Women) -->
+    <a href="{{ url_for('products', cat='Clothing — Women') }}" class="catbar-pill {% if active_cat == 'Clothing — Women' %}active{% endif %}">
+      <span class="cp-icon">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="14" fill="#fdf0f7"/>
+          <path d="M14 8c0 0-3 2-3 5v7h6v-7c0-3-3-5-3-5z" fill="#e91e8c" opacity=".15" stroke="#e91e8c" stroke-width="1.4" stroke-linejoin="round"/>
+          <path d="M11 13h6" stroke="#e91e8c" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="cp-label">Fashion</span>
+    </a>
+
+    <!-- Mobiles -->
+    <a href="{{ url_for('products', cat='Smartphones') }}" class="catbar-pill {% if active_cat == 'Smartphones' %}active{% endif %}">
+      <span class="cp-icon">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="14" fill="#f0f4ff"/>
+          <rect x="10" y="6" width="8" height="16" rx="2" stroke="#3f51b5" stroke-width="1.6"/>
+          <line x1="13" y1="19" x2="15" y2="19" stroke="#3f51b5" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="12" y1="8.5" x2="16" y2="8.5" stroke="#3f51b5" stroke-width="1" stroke-linecap="round" opacity=".5"/>
+        </svg>
+      </span>
+      <span class="cp-label">Mobiles</span>
+    </a>
+
+    <!-- Beauty -->
+    <a href="{{ url_for('products', cat='Beauty & Skincare') }}" class="catbar-pill {% if active_cat == 'Beauty & Skincare' %}active{% endif %}">
+      <span class="cp-icon">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="14" fill="#fff0f6"/>
+          <rect x="11" y="9" width="6" height="10" rx="3" fill="#e91e8c" opacity=".15" stroke="#e91e8c" stroke-width="1.5"/>
+          <rect x="12.5" y="7" width="3" height="3" rx="1" fill="#e91e8c" opacity=".4"/>
+          <path d="M11 17.5c0 1 3 1.5 3 1.5s3-.5 3-1.5" stroke="#e91e8c" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="cp-label">Beauty</span>
+    </a>
+
+    <!-- Electronics -->
+    <a href="{{ url_for('products', cat='Electronics') }}" class="catbar-pill {% if active_cat == 'Electronics' %}active{% endif %}">
+      <span class="cp-icon">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="14" fill="#e8f4fd"/>
+          <rect x="7" y="9" width="14" height="9" rx="1.5" stroke="#0277bd" stroke-width="1.6"/>
+          <line x1="11" y1="21" x2="17" y2="21" stroke="#0277bd" stroke-width="1.4" stroke-linecap="round"/>
+          <line x1="14" y1="18" x2="14" y2="21" stroke="#0277bd" stroke-width="1.4" stroke-linecap="round"/>
+          <rect x="10" y="11.5" width="4" height="3" rx=".8" fill="#0277bd" opacity=".25"/>
+        </svg>
+      </span>
+      <span class="cp-label">Electronics</span>
+    </a>
+
+    <!-- Home -->
+    <a href="{{ url_for('products', cat='Home & Living') }}" class="catbar-pill {% if active_cat == 'Home & Living' %}active{% endif %}">
+      <span class="cp-icon">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="14" fill="#f0fbf4"/>
+          <path d="M7 14l7-7 7 7" stroke="#2e7d32" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M10 14v6h3v-4h2v4h3v-6" stroke="#2e7d32" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="cp-label">Home</span>
+    </a>
+
+    <!-- Appliances -->
+    <a href="{{ url_for('products', cat='Appliances') }}" class="catbar-pill {% if active_cat == 'Appliances' %}active{% endif %}">
+      <span class="cp-icon">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="14" fill="#e8f4fd"/>
+          <rect x="8" y="8" width="12" height="13" rx="1.5" stroke="#0277bd" stroke-width="1.5"/>
+          <circle cx="14" cy="14" r="3" stroke="#0277bd" stroke-width="1.3"/>
+          <line x1="11" y1="10" x2="17" y2="10" stroke="#0277bd" stroke-width="1" stroke-linecap="round" opacity=".4"/>
+        </svg>
+      </span>
+      <span class="cp-label">Appliances</span>
+    </a>
+
+    <!-- Toys & Baby -->
+    <a href="{{ url_for('products', cat='Toys & Games') }}" class="catbar-pill {% if active_cat == 'Toys & Games' %}active{% endif %}">
+      <span class="cp-icon">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="14" fill="#fff8e1"/>
+          <circle cx="11" cy="15" r="3" stroke="#f57f17" stroke-width="1.5"/>
+          <circle cx="17" cy="15" r="3" stroke="#f57f17" stroke-width="1.5"/>
+          <path d="M14 12v-3" stroke="#f57f17" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="14" cy="8.5" r="1.5" fill="#f57f17" opacity=".4"/>
+          <line x1="11" y1="15" x2="17" y2="15" stroke="#f57f17" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="cp-label">Toys &amp; Baby</span>
+    </a>
+
+    <!-- Food & Health -->
+    <a href="{{ url_for('products', cat='Groceries & Food') }}" class="catbar-pill {% if active_cat == 'Groceries & Food' %}active{% endif %}">
+      <span class="cp-icon">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="14" fill="#f1fce4"/>
+          <path d="M8 10c0 0 1-3 6-3s6 3 6 3" stroke="#388e3c" stroke-width="1.4" stroke-linecap="round"/>
+          <path d="M8 10v3a6 6 0 0 0 12 0v-3" stroke="#388e3c" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="14" y1="16" x2="14" y2="21" stroke="#388e3c" stroke-width="1.4" stroke-linecap="round"/>
+          <line x1="11" y1="21" x2="17" y2="21" stroke="#388e3c" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="cp-label">Food &amp; Health</span>
+    </a>
+
+    <!-- Auto Accessories -->
+    <a href="{{ url_for('products', cat='Automotive') }}" class="catbar-pill {% if active_cat == 'Automotive' %}active{% endif %}">
+      <span class="cp-icon">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="14" fill="#f0f4ff"/>
+          <path d="M6 15l2-5h12l2 5v3H6v-3z" stroke="#3f51b5" stroke-width="1.5" stroke-linejoin="round"/>
+          <circle cx="10" cy="18.5" r="1.5" stroke="#3f51b5" stroke-width="1.3"/>
+          <circle cx="18" cy="18.5" r="1.5" stroke="#3f51b5" stroke-width="1.3"/>
+          <line x1="9" y1="12.5" x2="19" y2="12.5" stroke="#3f51b5" stroke-width="1" stroke-linecap="round" opacity=".4"/>
+        </svg>
+      </span>
+      <span class="cp-label">Auto Acc.</span>
+    </a>
+
+    <!-- Sports -->
+    <a href="{{ url_for('products', cat='Sports & Fitness') }}" class="catbar-pill {% if active_cat == 'Sports & Fitness' %}active{% endif %}">
+      <span class="cp-icon">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="14" fill="#fff3e0"/>
+          <circle cx="14" cy="14" r="5.5" stroke="#e65100" stroke-width="1.5"/>
+          <path d="M10.5 10.5 Q14 14 17.5 10.5" stroke="#e65100" stroke-width="1.2" stroke-linecap="round"/>
+          <path d="M10.5 17.5 Q14 14 17.5 17.5" stroke="#e65100" stroke-width="1.2" stroke-linecap="round"/>
+          <line x1="14" y1="8.5" x2="14" y2="19.5" stroke="#e65100" stroke-width="1.2" stroke-linecap="round" opacity=".4"/>
+        </svg>
+      </span>
+      <span class="cp-label">Sports</span>
+    </a>
+
+    <!-- Footwear -->
+    <a href="{{ url_for('products', cat='Footwear') }}" class="catbar-pill {% if active_cat == 'Footwear' %}active{% endif %}">
+      <span class="cp-icon">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="14" fill="#fff8f0"/>
+          <path d="M7 18c0 0 3-8 7-8s5 4 5 4l2 4H7z" stroke="#bf360c" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M19 18c0 1-1 1-1 1H8s-1 0-1-1" stroke="#bf360c" stroke-width="1.4" stroke-linecap="round"/>
+          <path d="M12 10.5c0 0 1-1 2-1" stroke="#bf360c" stroke-width="1.2" stroke-linecap="round" opacity=".5"/>
+        </svg>
+      </span>
+      <span class="cp-label">Footwear</span>
+    </a>
+
+    <!-- Jewellery -->
+    <a href="{{ url_for('products', cat='Jewellery') }}" class="catbar-pill {% if active_cat == 'Jewellery' %}active{% endif %}">
+      <span class="cp-icon">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="14" fill="#fffde7"/>
+          <path d="M9 11l5-4 5 4-5 9-5-9z" stroke="#f9a825" stroke-width="1.5" stroke-linejoin="round"/>
+          <line x1="9" y1="11" x2="19" y2="11" stroke="#f9a825" stroke-width="1.3" stroke-linecap="round"/>
+          <path d="M11.5 11l2.5 7 2.5-7" stroke="#f9a825" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".5"/>
+        </svg>
+      </span>
+      <span class="cp-label">Jewellery</span>
+    </a>
+
+    <!-- Books -->
+    <a href="{{ url_for('products', cat='Books & Stationery') }}" class="catbar-pill {% if active_cat == 'Books & Stationery' %}active{% endif %}">
+      <span class="cp-icon">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="14" fill="#e8eaf6"/>
+          <rect x="9" y="7" width="10" height="14" rx="1" stroke="#3f51b5" stroke-width="1.5"/>
+          <line x1="12" y1="11" x2="16" y2="11" stroke="#3f51b5" stroke-width="1.2" stroke-linecap="round"/>
+          <line x1="12" y1="13.5" x2="16" y2="13.5" stroke="#3f51b5" stroke-width="1.2" stroke-linecap="round"/>
+          <line x1="12" y1="16" x2="14.5" y2="16" stroke="#3f51b5" stroke-width="1.2" stroke-linecap="round"/>
+          <rect x="9" y="7" width="2" height="14" rx="0" fill="#3f51b5" opacity=".12"/>
+        </svg>
+      </span>
+      <span class="cp-label">Books</span>
+    </a>
+
+    <!-- Men's Fashion -->
+    <a href="{{ url_for('products', cat='Clothing — Men') }}" class="catbar-pill {% if active_cat == 'Clothing — Men' %}active{% endif %}">
+      <span class="cp-icon">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="14" fill="#f0fdf4"/>
+          <path d="M10 8l4 3 4-3" stroke="#2d5016" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M10 8v12h8V8" stroke="#2d5016" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M8 9.5l2 1.5M20 9.5l-2 1.5" stroke="#2d5016" stroke-width="1.3" stroke-linecap="round"/>
+          <path d="M8 9.5v9h2V11M20 9.5v9h-2V11" stroke="#2d5016" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="cp-label">Men's</span>
+    </a>
+
+    <!-- Travel -->
+    <a href="{{ url_for('products', cat='Travel & Luggage') }}" class="catbar-pill {% if active_cat == 'Travel & Luggage' %}active{% endif %}">
+      <span class="cp-icon">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="14" fill="#e3f2fd"/>
+          <rect x="9" y="11" width="10" height="9" rx="1.5" stroke="#0277bd" stroke-width="1.5"/>
+          <path d="M11 11V9a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="#0277bd" stroke-width="1.3"/>
+          <line x1="14" y1="11" x2="14" y2="20" stroke="#0277bd" stroke-width="1" stroke-linecap="round" opacity=".4"/>
+          <line x1="9" y1="15" x2="19" y2="15" stroke="#0277bd" stroke-width="1" stroke-linecap="round" opacity=".4"/>
+          <circle cx="11" cy="21" r="1" fill="#0277bd"/>
+          <circle cx="17" cy="21" r="1" fill="#0277bd"/>
+        </svg>
+      </span>
+      <span class="cp-label">Travel</span>
+    </a>
+
+    <!-- Pets -->
+    <a href="{{ url_for('products', cat='Pet Supplies') }}" class="catbar-pill {% if active_cat == 'Pet Supplies' %}active{% endif %}">
+      <span class="cp-icon">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="14" fill="#fff8e1"/>
+          <circle cx="11" cy="10" r="1.5" fill="#f57f17"/>
+          <circle cx="17" cy="10" r="1.5" fill="#f57f17"/>
+          <circle cx="8.5" cy="13.5" r="1.5" fill="#f57f17"/>
+          <circle cx="19.5" cy="13.5" r="1.5" fill="#f57f17"/>
+          <path d="M14 13c-3 0-5 2-5 4 0 2.5 2 3.5 5 3.5s5-1 5-3.5c0-2-2-4-5-4z" stroke="#f57f17" stroke-width="1.5" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="cp-label">Pets</span>
+    </a>
+
+  </div>
+  <!-- Scroll arrows -->
+  <button class="catbar-arrow catbar-arrow-left" id="catArrowLeft" onclick="scrollCatbar(-200)">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+  </button>
+  <button class="catbar-arrow catbar-arrow-right" id="catArrowRight" onclick="scrollCatbar(200)">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+  </button>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     SEASON PICKS
+═══════════════════════════════════════════════════════════ -->
+{% if season_picks %}
+<section class="home-section bg-parchment">
+  <div class="home-section-inner">
+    <div class="section-hdr">
+      <div>
+        <h2 class="section-h2">
+          {% if season == 'Summer' %}☀️ Summer Must-Haves
+          {% elif season == 'Monsoon' %}🌧️ Monsoon Essentials
+          {% elif season == 'Winter' %}❄️ Winter Warmers
+          {% else %}🌸 Spring Picks{% endif %}
+        </h2>
+        <p class="section-sub">Curated for the current season</p>
+      </div>
+      <a href="{{ url_for('products') }}" class="section-link">Shop all →</a>
+    </div>
+    <div class="products-grid">
+      {% for p in season_picks %}
+      <div class="product-card">
+        {% if p['badge'] %}<div class="card-badge badge-{{ p['badge']|lower|replace(' ','') }}">{{ p['badge'] }}</div>{% endif %}
+        <a href="{{ url_for('product_detail', pid=p['id']) }}" class="card-thumb-link">
+          <div class="card-thumb"><img src="{{ img_url(get_img(p['id'])) }}" alt="{{ p['name'] }}" loading="lazy"></div>
+        </a>
+        <div class="card-body">
+          <div class="card-cat">{{ p['category'] }}</div>
+          <a href="{{ url_for('product_detail', pid=p['id']) }}" class="card-name-link">
+            <div class="card-name">{{ p['name'] }}</div>
+          </a>
+          <div class="card-stars">{{ '★' * (p['rating']|int) }}{{ '☆' * (5 - p['rating']|int) }} <span class="card-reviews">({{ p['reviews'] }})</span></div>
+          <div class="card-price"><sub>&#8377;</sub>{{ "{:,.0f}".format(p['price']) }}</div>
+          <div class="card-actions">
+            <a href="{{ url_for('product_detail', pid=p['id']) }}" class="card-view-btn">View Details</a>
+            <a href="{{ url_for('add_to_cart', pid=p['id']) }}" class="card-add">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- ═══════════════════════════════════════════════════════════
+     TRENDING
+═══════════════════════════════════════════════════════════ -->
+<section class="home-section">
+  <div class="home-section-inner">
+    <div class="section-hdr">
+      <div>
+        <h2 class="section-h2">🔥 Trending Right Now</h2>
+        <p class="section-sub">Most loved by our customers</p>
+      </div>
+      <a href="{{ url_for('products') }}" class="section-link">View all →</a>
+    </div>
+    <div class="products-grid">
+      {% for p in trending %}
+      <div class="product-card">
+        {% if p['badge'] %}<div class="card-badge badge-{{ p['badge']|lower|replace(' ','') }}">{{ p['badge'] }}</div>{% endif %}
+        <a href="{{ url_for('product_detail', pid=p['id']) }}" class="card-thumb-link">
+          <div class="card-thumb"><img src="{{ img_url(get_img(p['id'])) }}" alt="{{ p['name'] }}" loading="lazy"></div>
+        </a>
+        <div class="card-body">
+          <div class="card-cat">{{ p['category'] }}</div>
+          <a href="{{ url_for('product_detail', pid=p['id']) }}" class="card-name-link">
+            <div class="card-name">{{ p['name'] }}</div>
+          </a>
+          <div class="card-stars">{{ '★' * (p['rating']|int) }}{{ '☆' * (5 - p['rating']|int) }} <span class="card-reviews">({{ p['reviews'] }})</span></div>
+          <div class="card-price"><sub>&#8377;</sub>{{ "{:,.0f}".format(p['price']) }}</div>
+          <div class="card-actions">
+            <a href="{{ url_for('product_detail', pid=p['id']) }}" class="card-view-btn">View Details</a>
+            <a href="{{ url_for('add_to_cart', pid=p['id']) }}" class="card-add">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     DEALS OF THE DAY
+═══════════════════════════════════════════════════════════ -->
+<section class="home-section bg-forest">
+  <div class="home-section-inner">
+    <div class="section-hdr">
+      <div>
+        <h2 class="section-h2 white">⚡ Deals of the Day</h2>
+        <p class="section-sub white-muted">Use promo codes at checkout for extra savings</p>
+      </div>
+      <a href="{{ url_for('products') }}" class="section-link white">Browse all →</a>
+    </div>
+    <div class="products-grid">
+      {% for p in deals %}
+      <div class="product-card deal-card">
+        {% if p['badge'] %}<div class="card-badge badge-{{ p['badge']|lower|replace(' ','') }}">{{ p['badge'] }}</div>{% endif %}
+        <a href="{{ url_for('product_detail', pid=p['id']) }}" class="card-thumb-link">
+          <div class="card-thumb"><img src="{{ img_url(get_img(p['id'])) }}" alt="{{ p['name'] }}" loading="lazy"></div>
+        </a>
+        <div class="card-body">
+          <div class="card-cat">{{ p['category'] }}</div>
+          <a href="{{ url_for('product_detail', pid=p['id']) }}" class="card-name-link">
+            <div class="card-name">{{ p['name'] }}</div>
+          </a>
+          <div class="card-stars">{{ '★' * (p['rating']|int) }}{{ '☆' * (5 - p['rating']|int) }} <span class="card-reviews">({{ "{:,}".format(p['reviews']) }})</span></div>
+          <div class="card-price"><sub>&#8377;</sub>{{ "{:,.0f}".format(p['price']) }}</div>
+          <div class="card-actions">
+            <a href="{{ url_for('product_detail', pid=p['id']) }}" class="card-view-btn">View Details</a>
+            <a href="{{ url_for('add_to_cart', pid=p['id']) }}" class="card-add" title="Add to Cart">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══ AI RECOMMENDATIONS ═══ -->
+<section class="ai-recs-section" id="aiRecsSection" style="display:none">
+  <div class="home-section-inner">
+    <div class="section-hdr">
+      <div>
+        <h2 class="section-h2">
+          <span style="background:linear-gradient(135deg,#2d5016,#b8882a);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">✨ Recommended for You</span>
+        </h2>
+        <p class="section-sub">Based on your browsing and purchase history</p>
+      </div>
+      <a href="{{ url_for('products') }}" class="section-link">View all →</a>
+    </div>
+    <div class="products-grid" id="aiRecsGrid">
+      <!-- Filled by JS -->
+    </div>
+  </div>
+</section>
+
+<!-- ═══ RECENTLY VIEWED ═══ -->
+{% if recently %}
+<div class="recently-section">
+  <div class="recently-inner">
+    <div class="section-hdr">
+      <div>
+        <h2 class="section-h2">🕐 Recently Viewed</h2>
+        <p class="section-sub">Pick up where you left off</p>
+      </div>
+    </div>
+    <div class="products-grid">
+      {% for p in recently %}
+      <div class="product-card">
+        {% if p['badge'] %}<div class="card-badge badge-{{ p['badge']|lower|replace(' ','') }}">{{ p['badge'] }}</div>{% endif %}
+        <a href="{{ url_for('product_detail', pid=p['id']) }}" class="card-thumb-link">
+          <div class="card-thumb"><img src="{{ img_url(get_img(p['id'])) }}" alt="{{ p['name'] }}" loading="lazy"></div>
+        </a>
+        <div class="card-body">
+          <div class="card-cat">{{ p['category'] }}</div>
+          <a href="{{ url_for('product_detail', pid=p['id']) }}" class="card-name-link">
+            <div class="card-name">{{ p['name'] }}</div>
+          </a>
+          <div class="card-price"><sub>&#8377;</sub>{{ "{:,.0f}".format(p['price']) }}</div>
+          <div class="card-actions">
+            <a href="{{ url_for('product_detail', pid=p['id']) }}" class="card-view-btn">View</a>
+            <a href="{{ url_for('add_to_cart', pid=p['id']) }}" class="card-add">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══════════════════════════════════════════════════════════
+     FULL FOOTER
+═══════════════════════════════════════════════════════════ -->
+<footer class="site-footer">
+  <div class="footer-top">
+    <div class="footer-inner">
+
+      <div class="footer-col">
+        <div class="footer-col-title">ABOUT</div>
+        <a href="{{ url_for('about') }}">Contact Us</a>
+        <a href="{{ url_for('about') }}">About Us</a>
+        <a href="{{ url_for('careers') }}">Careers</a>
+        <a href="{{ url_for('about') }}">Nexacart Stories</a>
+        <a href="{{ url_for('about') }}">Press</a>
+        <a href="{{ url_for('about') }}">Corporate Information</a>
+      </div>
+
+      <div class="footer-col">
+        <div class="footer-col-title">HELP</div>
+        <a href="{{ url_for('help_page') }}">Payments</a>
+        <a href="{{ url_for('help_page') }}">Shipping</a>
+        <a href="{{ url_for('cancellation') }}">Cancellation &amp; Returns</a>
+        <a href="{{ url_for('help_page') }}">FAQ</a>
+        <a href="{{ url_for('help_page') }}">Report Infringement</a>
+      </div>
+
+      <div class="footer-col">
+        <div class="footer-col-title">POLICY</div>
+        <a href="{{ url_for('cancellation') }}">Cancellation &amp; Returns</a>
+        <a href="{{ url_for('terms') }}">Terms Of Use</a>
+        <a href="{{ url_for('privacy') }}">Security</a>
+        <a href="{{ url_for('privacy') }}">Privacy</a>
+        <a href="{{ url_for('terms') }}">Sitemap</a>
+        <a href="{{ url_for('terms') }}">EPR Compliance</a>
+      </div>
+
+      <div class="footer-col">
+        <div class="footer-col-title">MY ACCOUNT</div>
+        <a href="{{ url_for('profile') }}">My Profile</a>
+        <a href="{{ url_for('orders') }}">My Orders</a>
+        <a href="{{ url_for('wishlist') }}">My Wishlist</a>
+        <a href="{{ url_for('cart') }}">My Cart</a>
+        <a href="{{ url_for('rewards') }}">Rewards &amp; Gift Cards</a>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="footer-bottom-bar">
+    <div class="footer-bottom-inner">
+      <div class="footer-brand-row">
+        <span class="footer-logo-sm"><span class="nb-dot"></span> Nexacart</span>
+        <span class="footer-tagline-sm">Premium shopping, curated for you.</span>
+      </div>
+      <div class="footer-legal">
+        &copy; {{ current_year }} Nexacart. All rights reserved.
+        &nbsp;·&nbsp; <a href="{{ url_for('privacy') }}">Privacy</a>
+        &nbsp;·&nbsp; <a href="{{ url_for('terms') }}">Terms</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* Profile dropdown */
+function toggleProfile() {
+  document.getElementById('profileDropdown').classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.profile-menu'))
+    document.getElementById('profileDropdown').classList.remove('open');
+});
+
+/* Category bar scroll */
+function scrollCatbar(px) {
+  document.getElementById('catbarScroll').scrollBy({ left: px, behavior: 'smooth' });
+}
+function updateArrows() {
+  const el = document.getElementById('catbarScroll');
+  document.getElementById('catArrowLeft').style.opacity  = el.scrollLeft > 10 ? '1' : '0';
+  document.getElementById('catArrowRight').style.opacity = el.scrollLeft < el.scrollWidth - el.clientWidth - 10 ? '1' : '0';
+}
+document.getElementById('catbarScroll').addEventListener('scroll', updateArrows);
+window.addEventListener('load', updateArrows);
+
+/* Filter panel helpers */
+function setPrice(mn, mx) {
+  document.querySelector('[name=min_price]').value = mn;
+  document.querySelector('[name=max_price]').value = mx;
+  document.getElementById('filterForm').submit();
+}
+function toggleBrands(btn) {
+  const extra = btn.nextElementSibling;
+  const hidden = extra.style.display === 'none';
+  extra.style.display = hidden ? 'block' : 'none';
+  btn.textContent = hidden ? '− Show less' : '+ ' + extra.querySelectorAll('.ff-check').length + ' more';
+}
+function toggleMobFilter() {
+  document.getElementById('cfsFilters').classList.toggle('mob-open');
+}
+
+/* Auto-scroll to filter results on page load */
+window.addEventListener('DOMContentLoaded', () => {
+  const sec = document.getElementById('catProductsSection');
+  if (sec) {
+    setTimeout(() => sec.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
+  }
+});
+
+/* Location */
+function requestLocation() {
+  if (!navigator.geolocation) {
+    document.getElementById('location-text').textContent = 'Not supported';
+    return;
+  }
+  document.getElementById('location-text').textContent = 'Fetching…';
+  navigator.geolocation.getCurrentPosition(
+    async pos => {
+      const { latitude: lat, longitude: lon } = pos.coords;
+      try {
+        const res  = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+        const data = await res.json();
+        const a    = data.address;
+        const city = a.city || a.town || a.village || a.county || 'your area';
+        const st   = a.state || '';
+        const loc  = `${city}${st ? ', ' + st : ''}`;
+        document.getElementById('location-text').textContent = loc;
+        document.getElementById('locationText').textContent  = loc;
+        document.getElementById('locationBar').style.display = 'flex';
+        localStorage.setItem('userLocation', loc);
+      } catch {
+        document.getElementById('location-text').textContent = `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+      }
+    },
+    () => { document.getElementById('location-text').textContent = 'Permission denied'; },
+    { timeout: 10000 }
+  );
+}
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('userLocation');
+  if (saved) {
+    document.getElementById('location-text').textContent = saved;
+    document.getElementById('locationText').textContent  = saved;
+    document.getElementById('locationBar').style.display = 'flex';
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}Create Account — Nexacart{% endblock %}
+{% block content %}
+<div class="auth-layout">
+
+  <!-- Left Art Panel -->
+  <div class="art-panel terrac">
+    <div class="art-bg"></div><div class="art-dots"></div>
+    <div class="art-content">
+      <div class="art-logomark">
+        <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+          <circle cx="26" cy="26" r="25" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.25)" stroke-width="1.5"/>
+          <path d="M15 23h22l-2.5 15H17.5L15 23z" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.8)" stroke-width="1.6" stroke-linejoin="round"/>
+          <path d="M20 23v-4a6 6 0 0 1 12 0v4" stroke="rgba(255,255,255,0.8)" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+          <circle cx="26" cy="31" r="5.5" fill="#b8882a"/>
+          <text x="26" y="35" text-anchor="middle" font-family="Georgia,serif" font-size="7.5" font-weight="700" fill="#fff">N</text>
+        </svg>
+        <span class="art-wordmark-text">Nexacart</span>
+      </div>
+      <div class="art-headline">Join millions<br>of happy<strong>shoppers.</strong></div>
+      <div class="art-caption">Free to join · Shop instantly · Best prices</div>
+      <div class="art-chips">
+        <span class="art-chip">🎁 New member offers</span>
+        <span class="art-chip">🏷️ Exclusive deals</span>
+        <span class="art-chip">🌟 Loyalty rewards</span>
+        <span class="art-chip">📦 Order tracking</span>
+      </div>
+    </div>
+    <div class="art-footer">&copy; {{ current_year }} Nexacart — Your everyday marketplace</div>
+  </div>
+
+  <!-- Right Form Panel -->
+  <div class="form-panel">
+    <div class="auth-card" style="max-width:440px">
+      <div class="auth-eyebrow terrac">New account</div>
+      <h1 class="auth-title">Register.</h1>
+      <p class="auth-subtitle">Choose your account type and get started.</p>
+
+      {% if error %}<div class="error-box">{{ error }}</div>{% endif %}
+
+      <!-- Account Type Selector -->
+      <div class="role-selector" id="roleSelector">
+        <button type="button" class="role-btn active" id="btnCustomer" onclick="selectRole('customer')">
+          <span class="role-icon">🛍️</span>
+          <span class="role-label">Customer</span>
+          <span class="role-desc">Shop &amp; buy products</span>
+        </button>
+        <button type="button" class="role-btn" id="btnAdmin" onclick="selectRole('admin')">
+          <span class="role-icon">⚙️</span>
+          <span class="role-label">Admin</span>
+          <span class="role-desc">Manage the store</span>
+        </button>
+      </div>
+
+      <form method="post" autocomplete="off" id="regForm" novalidate>
+        <input type="hidden" name="account_type" id="accountTypeInput" value="{{ form_data.get('account_type','customer') }}">
+
+        <!-- Username -->
+        <div class="field">
+          <label for="username">Username <span class="req-star">*</span></label>
+          <input type="text" id="username" name="username"
+                 value="{{ form_data.get('username','') }}"
+                 placeholder="e.g. priya_k" required minlength="3" autofocus>
+          <div class="field-hint">Min 3 characters</div>
+        </div>
+
+        <!-- Email -->
+        <div class="field">
+          <label for="email">
+            Email Address
+            <span class="req-badge">Required if no phone</span>
+          </label>
+          <div class="input-icon-wrap">
+            <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+            <input type="email" id="email" name="email"
+                   value="{{ form_data.get('email','') }}"
+                   placeholder="yourname@gmail.com" class="input-with-icon">
+          </div>
+        </div>
+
+        <!-- Mobile -->
+        <div class="field">
+          <label for="phone">Mobile Number <span class="req-badge">Required if no email</span></label>
+          <div class="phone-row">
+            <select name="country_code" id="countryCode" class="country-select">
+              {% set selected_code = form_data.get('country_code', '+91') %}
+              {% for code, flag, name in [
+                ('+91','🇮🇳','India'),('+1','🇺🇸','USA'),('+44','🇬🇧','UK'),
+                ('+971','🇦🇪','UAE'),('+966','🇸🇦','Saudi Arabia'),('+65','🇸🇬','Singapore'),
+                ('+60','🇲🇾','Malaysia'),('+61','🇦🇺','Australia'),('+49','🇩🇪','Germany'),
+                ('+33','🇫🇷','France'),('+81','🇯🇵','Japan'),('+86','🇨🇳','China'),
+                ('+55','🇧🇷','Brazil'),('+7','🇷🇺','Russia'),('+27','🇿🇦','South Africa'),
+                ('+92','🇵🇰','Pakistan'),('+880','🇧🇩','Bangladesh'),('+94','🇱🇰','Sri Lanka'),
+                ('+977','🇳🇵','Nepal'),('+20','🇪🇬','Egypt')
+              ] %}
+              <option value="{{ code }}" {% if selected_code==code %}selected{% endif %}>{{ flag }} {{ code }}</option>
+              {% endfor %}
+            </select>
+            <input type="tel" id="phone" name="phone"
+                   value="{{ form_data.get('phone','') }}"
+                   placeholder="98765 43210" class="phone-input">
+          </div>
+          <div class="field-hint">Enter number without country code</div>
+        </div>
+
+        <div class="verify-note">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Email or mobile is used for account verification. <strong>At least one is required.</strong>
+        </div>
+
+        <!-- Password -->
+        <div class="field">
+          <label for="password">Password <span class="req-star">*</span></label>
+          <div class="pw-wrap">
+            <input type="password" id="password" name="password" placeholder="Min 6 characters" required minlength="6">
+            <button type="button" class="pw-eye" onclick="togglePw('password',this)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <div class="pw-strength-wrap">
+            <div class="pw-strength-bar"><div class="pw-strength-fill" id="pwStrengthFill"></div></div>
+            <span class="pw-strength-label" id="pwStrengthLabel"></span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="password2">Confirm Password <span class="req-star">*</span></label>
+          <div class="pw-wrap">
+            <input type="password" id="password2" name="password2" placeholder="Repeat password" required>
+            <button type="button" class="pw-eye" onclick="togglePw('password2',this)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <div class="pw-match-msg" id="pwMatchMsg"></div>
+        </div>
+
+        <button class="btn-primary" type="submit">Create My Account</button>
+      </form>
+
+      <div class="ornament">&diams;</div>
+      <div class="auth-foot">Already a member? <a href="{{ url_for('login') }}">Sign in here</a></div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Role selector — no invite code required, just sets account type
+function selectRole(role) {
+  document.getElementById('accountTypeInput').value = role;
+  document.getElementById('btnCustomer').classList.toggle('active', role === 'customer');
+  document.getElementById('btnAdmin').classList.toggle('active', role === 'admin');
+}
+
+// Pre-select saved role if form was submitted with errors
+const savedType = "{{ form_data.get('account_type','customer') }}";
+if (savedType === 'admin') selectRole('admin');
+
+// Password strength
+document.getElementById('password').addEventListener('input', function() {
+  const val=this.value, fill=document.getElementById('pwStrengthFill'), lbl=document.getElementById('pwStrengthLabel');
+  let sc=0;
+  if(val.length>=6)sc++; if(val.length>=10)sc++;
+  if(/[A-Z]/.test(val))sc++; if(/[0-9]/.test(val))sc++;
+  if(/[^A-Za-z0-9]/.test(val))sc++;
+  const levels=[{w:'0%',c:'#ef4444',t:''},{w:'25%',c:'#ef4444',t:'Weak'},{w:'50%',c:'#f97316',t:'Fair'},{w:'75%',c:'#eab308',t:'Good'},{w:'100%',c:'#22c55e',t:'Strong'}];
+  const l=levels[Math.min(sc,4)];
+  fill.style.width=l.w; fill.style.background=l.c; lbl.textContent=l.t; lbl.style.color=l.c;
+});
+
+// Password match
+document.getElementById('password2').addEventListener('input', function() {
+  const msg=document.getElementById('pwMatchMsg');
+  if(!this.value){msg.textContent='';return;}
+  if(this.value===document.getElementById('password').value){msg.textContent='✓ Passwords match';msg.style.color='#22c55e';}
+  else{msg.textContent='✗ Passwords do not match';msg.style.color='#ef4444';}
+});
+
+// Require email OR phone
+document.getElementById('regForm').addEventListener('submit', function(e) {
+  if (!document.getElementById('email').value.trim() && !document.getElementById('phone').value.trim()) {
+    e.preventDefault();
+    alert('Please provide at least one: email address or mobile number.');
+  }
+});
+</script>
+{% endblock %}

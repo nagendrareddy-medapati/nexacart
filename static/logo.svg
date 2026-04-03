@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 48" fill="none">
+  <!-- Shopping bag icon -->
+  <g>
+    <!-- Bag body -->
+    <path d="M6 20h22l-2.5 16H8.5L6 20z"
+          fill="#2d5016" rx="2"/>
+    <!-- Bag handle -->
+    <path d="M11 20v-4a6 6 0 0 1 12 0v4"
+          fill="none" stroke="#2d5016" stroke-width="2.2" stroke-linecap="round"/>
+    <!-- Gold N badge on bag -->
+    <circle cx="17" cy="29" r="5" fill="#b8882a"/>
+    <text x="17" y="33" text-anchor="middle"
+          font-family="Georgia,serif" font-size="7" font-weight="700" fill="#fff">N</text>
+  </g>
+  <!-- Wordmark -->
+  <text x="38" y="32"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="22" font-weight="700" fill="#2d5016"
+        letter-spacing="-0.5">Nexacart</text>
+  <!-- Gold dot accent -->
+  <circle cx="170" cy="12" r="4" fill="#b8882a"/>
+</svg>

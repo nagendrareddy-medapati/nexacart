@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}Checkout — Nexacart{% endblock %}
+
+{% block head_extra %}
+<script src="https://js.stripe.com/v3/"></script>
+{% endblock %}
+
+{% block navbar %}
+<nav class="navbar">
+  <div class="nav-brand">
+        <svg class="nav-brand-logo" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="16" cy="16" r="16" fill="rgba(255,255,255,0.15)"/>
+          <path d="M9 15h14l-1.5 9H10.5L9 15z" fill="rgba(255,255,255,0.25)" stroke="rgba(255,255,255,0.9)" stroke-width="1.2" stroke-linejoin="round"/>
+          <path d="M12 15v-3a4 4 0 0 1 8 0v3" stroke="rgba(255,255,255,0.9)" stroke-width="1.3" stroke-linecap="round" fill="none"/>
+          <circle cx="16" cy="20" r="3.5" fill="#b8882a"/>
+          <text x="16" y="23" text-anchor="middle" font-family="Georgia,serif" font-size="5" font-weight="700" fill="#fff">N</text>
+        </svg>
+        Nexacart
+      </div>
+  <div class="nav-right">
+    <a href="{{ url_for('cart') }}" class="nav-back">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+      Back to Cart
+    </a>
+    <a href="{{ url_for('logout') }}" class="nav-out">Sign out</a>
+  </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="checkout-wrap">
+
+  <!-- LEFT: billing + Stripe card -->
+  <div class="billing-col">
+    <div class="section-eyebrow">Secure checkout</div>
+    <h1 class="section-title">Payment Details</h1>
+
+    <form id="payment-form">
+      <div class="form-grid">
+        <div class="field full">
+          <label for="full-name">Full Name</label>
+          <input type="text" id="full-name" placeholder="Priya Sharma" required>
+        </div>
+        <div class="field full">
+          <label for="email">Email Address</label>
+          <input type="email" id="email" placeholder="priya@example.com" required>
+        </div>
+        <div class="field full">
+          <label for="phone">Phone Number</label>
+          <input type="tel" id="phone" placeholder="+91 98765 43210">
+        </div>
+        <div class="field full">
+          <label for="address">Shipping Address</label>
+          <input type="text" id="address" placeholder="123, MG Road, Bangalore" required>
+        </div>
+        <div class="field">
+          <label for="city">City</label>
+          <input type="text" id="city" placeholder="Bangalore" required>
+        </div>
+        <div class="field">
+          <label for="pin">PIN Code</label>
+          <input type="text" id="pin" placeholder="560001" maxlength="6" required
+                 oninput="lookupPin(this.value)">
+        </div>
+      </div>
+
+      <div class="stripe-section">
+        <div class="stripe-section-title">
+          Card Details
+          <span class="stripe-badge">Powered by Stripe</span>
+        </div>
+        <div id="card-element"></div>
+        <div id="card-errors" role="alert"></div>
+      </div>
+
+      <button type="submit" class="pay-btn" id="pay-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        Pay &#8377;{{ "{:,.0f}".format(grand_total) }} via Card
+      </button>
+
+      <div class="pay-divider"><span>or pay via</span></div>
+
+      <a href="{{ url_for('upi_payment') }}" class="upi-checkout-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+        Pay &#8377;{{ "{:,.0f}".format(grand_total) }} via UPI
+        <span class="upi-apps-mini">GPay · PhonePe · Paytm · BHIM</span>
+      </a>
+
+      <div class="secure-note">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+        256-bit SSL &bull; Card data never touches our server &bull; UPI is 100% secure
+      </div>
+    </form>
+  </div>
+
+  <!-- RIGHT: order summary -->
+  <div class="order-col">
+    <div class="order-title">Your Order</div>
+
+    {% for item in items %}
+    <div class="order-item">
+      <div class="order-item-icon">
+        <img src="{{ img_url(get_img(item['id'])) }}"
+             alt="" style="width:36px;height:36px;object-fit:cover;border-radius:4px">
+      </div>
+      <div class="order-item-name">
+        {{ item['name'][:35] }}{% if item['name']|length > 35 %}…{% endif %}
+        {% if item['variant'] %}<br><small style="color:var(--muted)">{{ item['variant'] }}</small>{% endif %}
+        {% if item['quantity'] > 1 %}<br><small style="color:var(--muted)">×{{ item['quantity'] }}</small>{% endif %}
+      </div>
+      <div class="order-item-price">₹{{ "{:,.0f}".format(item['price'] * item['quantity']) }}</div>
+    </div>
+    {% endfor %}
+
+    <div class="order-sum">
+      <div class="order-sum-line">
+        <span>Subtotal</span>
+        <span class="v">&#8377;{{ "{:,.0f}".format(subtotal) }}</span>
+      </div>
+      {% if discount_pct > 0 %}
+      <div class="order-sum-line disc">
+        <span>Promo ({{ applied_code }} &minus;{{ discount_pct }}%)</span>
+        <span class="v">&minus; &#8377;{{ "{:,.0f}".format(discount_amt) }}</span>
+      </div>
+      {% endif %}
+      <div class="order-sum-line">
+        <span>GST (9%)</span>
+        <span class="v">&#8377;{{ "{:,.0f}".format(gst_amt) }}</span>
+      </div>
+      <div class="order-sum-line">
+        <span>Delivery</span>
+        <span class="v" style="color:var(--moss)">Free</span>
+      </div>
+    </div>
+
+    <div class="order-total">
+      <span class="order-total-lbl">Grand Total</span>
+      <span class="order-total-val">&#8377;{{ "{:,.0f}".format(grand_total) }}</span>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.STRIPE_PUB_KEY = "{{ stripe_pub_key }}";
+
+  // Auto-fill city from PIN code
+  let pinTimer;
+  function lookupPin(pin) {
+    clearTimeout(pinTimer);
+    if (pin.length !== 6) return;
+    pinTimer = setTimeout(async () => {
+      try {
+        const r = await fetch('/api/pincode/' + pin);
+        const d = await r.json();
+        if (d.city) {
+          const cityEl = document.getElementById('city');
+          if (cityEl && !cityEl.value) {
+            cityEl.value = d.city;
+            cityEl.style.borderColor = 'var(--moss)';
+            setTimeout(()=>cityEl.style.borderColor='', 2000);
+          }
+        }
+      } catch(e) {}
+    }, 500);
+  }
+</script>
+{% endblock %}

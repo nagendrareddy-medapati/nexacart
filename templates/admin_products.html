@@ -1,0 +1,105 @@
+{% extends "admin_base.html" %}
+{% block title %}Products — Nexacart Admin{% endblock %}
+{% block page_title %}Products ({{ total }}){% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;flex-wrap:wrap;gap:.7rem">
+  <form class="search-bar" method="get" style="margin:0;flex:1;min-width:220px;max-width:400px">
+    <input name="q" value="{{ q }}" placeholder="Search products…">
+    <button type="submit" class="btn btn-primary btn-sm">Search</button>
+    {% if q %}<a href="{{ url_for('admin_products') }}" class="btn btn-outline btn-sm">Clear</a>{% endif %}
+  </form>
+  <a href="{{ url_for('admin_add_product') }}" class="btn btn-primary">➕ Add Product</a>
+</div>
+
+<div class="card">
+  <div style="overflow-x:auto">
+  <table>
+    <tr>
+      <th style="width:70px">Image</th>
+      <th>Name</th>
+      <th>Category</th>
+      <th>Price</th>
+      <th>Rating</th>
+      <th>Stock</th>
+      <th>Actions</th>
+    </tr>
+    {% for p in products %}
+    <tr>
+      <!-- Image: uses img_url() which handles all GridFS key formats -->
+      <td>
+        {% set imgs = p.get('images') or [] %}
+        {% if imgs and imgs[0] %}
+          <img src="{{ img_url(imgs[0]) }}"
+               class="product-thumb"
+               alt="{{ p.name }}"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="product-thumb-fallback" style="display:none">{{ p.get('icon','📦') }}</div>
+        {% else %}
+          <div class="product-thumb-fallback">{{ p.get('icon','📦') }}</div>
+        {% endif %}
+      </td>
+
+      <td>
+        <strong>{{ p.name[:45] }}</strong>
+        {% if p.badge %}
+        <br><span style="font-size:.63rem;color:#6b7280;background:#f3f4f6;padding:.1rem .4rem;border-radius:3px">{{ p.badge }}</span>
+        {% endif %}
+      </td>
+      <td style="font-size:.78rem;color:#6b7280">{{ p.category }}</td>
+      <td style="font-weight:600">₹{{ "{:,.0f}".format(p.price) }}</td>
+      <td>
+        <span style="color:#f59e0b">★</span>
+        {{ p.rating }}
+      </td>
+      <td>
+        <span style="color:{% if (p.stock or 100) < 10 %}#dc2626{% elif (p.stock or 100) < 30 %}#f59e0b{% else %}#15803d{% endif %};font-weight:600">
+          {{ p.stock or 100 }}
+        </span>
+      </td>
+      <td style="white-space:nowrap">
+        <a href="{{ url_for('admin_edit_product', pid=p.id) }}" class="btn btn-outline btn-sm">✏️ Edit</a>
+        <form method="post" action="{{ url_for('admin_delete_product', pid=p.id) }}"
+              style="display:inline"
+              onsubmit="return confirm('Delete {{ p.name[:30] }}? This cannot be undone.')">
+          <button class="btn btn-danger btn-sm">🗑</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" style="text-align:center;padding:2.5rem;color:#9ca3af">
+      {% if q %}No products matching "{{ q }}"{% else %}No products yet. <a href="{{ url_for('admin_add_product') }}">Add one →</a>{% endif %}
+    </td></tr>
+    {% endfor %}
+  </table>
+  </div>
+
+  {% if total_pages > 1 %}
+  <div class="pagination">
+    {% if page > 1 %}
+    <a href="{{ url_for('admin_products', page=page-1, q=q) }}" class="page-btn">‹</a>
+    {% endif %}
+    {% for i in range([1,page-2]|max, [total_pages+1,page+3]|min) %}
+    <a href="{{ url_for('admin_products', page=i, q=q) }}"
+       class="page-btn {% if i==page %}active{% endif %}">{{ i }}</a>
+    {% endfor %}
+    {% if page < total_pages %}
+    <a href="{{ url_for('admin_products', page=page+1, q=q) }}" class="page-btn">›</a>
+    {% endif %}
+    <span style="font-size:.72rem;color:#6b7280;margin-left:.5rem">{{ total }} products</span>
+  </div>
+  {% endif %}
+</div>
+
+<style>
+.product-thumb{width:52px;height:52px;object-fit:contain;border-radius:6px;border:1px solid var(--border);background:#f9fafb;padding:3px}
+.product-thumb-fallback{width:52px;height:52px;border-radius:6px;border:1px solid var(--border);background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:1.6rem}
+@media(max-width:768px){
+  table th:nth-child(3),table td:nth-child(3),
+  table th:nth-child(5),table td:nth-child(5){display:none}
+}
+@media(max-width:560px){
+  table th:nth-child(4),table td:nth-child(4),
+  table th:nth-child(6),table td:nth-child(6){display:none}
+}
+</style>
+{% endblock %}

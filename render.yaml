@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: nexacart
+    env: python
+    region: singapore
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers=2 --timeout=120 --bind=0.0.0.0:$PORT
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ADMIN_INVITE_CODE
+        sync: false
+      - key: ADMIN_SECRET
+        sync: false
+      - key: MERCHANT_UPI_ID
+        sync: false
+      - key: MERCHANT_NAME
+        value: Nexacart
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
