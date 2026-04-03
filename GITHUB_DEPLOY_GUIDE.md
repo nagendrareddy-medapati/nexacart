@@ -33,7 +33,9 @@ git commit -m "Nexacart v1.0 — MongoDB GridFS edition"
 ### Step 5: Push to GitHub
 GitHub will show you commands — copy and run them. They look like:
 ```bash
-
+git remote add origin https://github.com/YOUR_USERNAME/nexacart.git
+git branch -M main
+git push -u origin main
 ```
 
 ✅ Your code is now on GitHub!
@@ -102,9 +104,7 @@ Click **+ Add** for each row:
 | `MERCHANT_NAME` | `Nexacart` |
 
 ### Step 4: Deploy
-Click **Deploy** → git remote add origin https://github.com/YOUR_USERNAME/nexacart.git
-git branch -M main
-git push -u origin mainwait ~2 minutes → ✅ Live!
+Click **Deploy** → wait ~2 minutes → ✅ Live!
 
 Your URL: `https://nexacart-yourusername.vercel.app`
 
