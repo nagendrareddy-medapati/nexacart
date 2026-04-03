@@ -60,7 +60,7 @@
           <label for="username">Username <span class="req-star">*</span></label>
           <input type="text" id="username" name="username"
                  value="{{ form_data.get('username','') }}"
-                 placeholder="e.g. priya_k" required minlength="3" autofocus>
+                 placeholder="e.g. user1" required minlength="3" autofocus>
           <div class="field-hint">Min 3 characters</div>
         </div>
 
@@ -71,7 +71,6 @@
             <span class="req-badge">Required if no phone</span>
           </label>
           <div class="input-icon-wrap">
-            <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
             <input type="email" id="email" name="email"
                    value="{{ form_data.get('email','') }}"
                    placeholder="yourname@gmail.com" class="input-with-icon">
