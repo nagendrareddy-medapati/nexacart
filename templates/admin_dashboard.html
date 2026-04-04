@@ -4,62 +4,101 @@
 {% block content %}
 
 <div class="stat-grid">
-  <div class="stat-card green"><div class="stat-label">Total Revenue</div><div class="stat-value">₹{{ "{:,.0f}".format(stats.revenue) }}</div></div>
-  <div class="stat-card"><div class="stat-label">Total Orders</div><div class="stat-value">{{ stats.orders }}</div></div>
-  <div class="stat-card"><div class="stat-label">Registered Users</div><div class="stat-value">{{ stats.users }}</div></div>
-  <div class="stat-card"><div class="stat-label">Products Listed</div><div class="stat-value">{{ stats.products }}</div></div>
-  <div class="stat-card gold"><div class="stat-label">Items in Carts</div><div class="stat-value">{{ stats.cart_items }}</div></div>
-  <div class="stat-card"><div class="stat-label">Reviews</div><div class="stat-value">{{ stats.reviews }}</div></div>
+  <div class="stat-card green">
+    <div class="stat-label">Total Revenue</div>
+    <div class="stat-value">₹{{ "{:,.0f}".format(stats['revenue']) }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Total Orders</div>
+    <div class="stat-value">{{ stats['orders'] }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Registered Users</div>
+    <div class="stat-value">{{ stats['users'] }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Products Listed</div>
+    <div class="stat-value">{{ stats['products'] }}</div>
+  </div>
+  <div class="stat-card gold">
+    <div class="stat-label">Items in Carts</div>
+    <div class="stat-value">{{ stats['cart_items'] }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Reviews</div>
+    <div class="stat-value">{{ stats['reviews'] }}</div>
+  </div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 360px;gap:1.2rem">
+<div style="display:grid;grid-template-columns:1fr 340px;gap:1.2rem">
 
-<div class="card">
-  <div class="card-hdr"><h3>Recent Orders</h3><a href="{{ url_for('admin_orders') }}" class="btn btn-outline btn-sm">View All</a></div>
-  <table>
-    <tr><th>Order Ref</th><th>Customer</th><th>Total</th><th>Status</th><th>Date</th></tr>
-    {% for o in recent_orders %}
-    <tr>
-      <td><strong>{{ o.order_ref }}</strong></td>
-      <td>{{ o.username }}</td>
-      <td>₹{{ "{:,.0f}".format(o.total) }}</td>
-      <td><span class="badge-status status-{{ o.status|lower }}">{{ o.status }}</span></td>
-      <td>{{ o.created_at[:10] }}</td>
-    </tr>
-    {% else %}<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:2rem">No orders yet</td></tr>
-    {% endfor %}
-  </table>
+  <!-- Recent Orders -->
+  <div class="card">
+    <div class="card-hdr">
+      <h3>Recent Orders</h3>
+      <a href="{{ url_for('admin_orders') }}" class="btn btn-outline btn-sm">View All</a>
+    </div>
+    <div style="overflow-x:auto">
+    <table>
+      <tr><th>Order Ref</th><th>Customer</th><th>Total</th><th>Status</th><th>Date</th></tr>
+      {% for o in recent_orders %}
+      <tr>
+        <td><strong>{{ o.get('order_ref','—') }}</strong></td>
+        <td style="font-size:.8rem">{{ o.get('username','—') }}</td>
+        <td>₹{{ "{:,.0f}".format(o.get('total',0)) }}</td>
+        <td>
+          <span class="badge-status status-{{ (o.get('status','confirmed')|lower|replace(' ','')) }}">
+            {{ o.get('status','—') }}
+          </span>
+        </td>
+        <td style="font-size:.75rem;color:#6b7280;white-space:nowrap">
+          {{ (o.get('created_at','') or '')[:10] }}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" style="text-align:center;color:#6b7280;padding:2rem">No orders yet</td></tr>
+      {% endfor %}
+    </table>
+    </div>
+  </div>
+
+  <!-- Revenue by Category -->
+  <div class="card">
+    <div class="card-hdr"><h3>Revenue by Category</h3></div>
+    <table>
+      <tr><th>Category</th><th>Revenue</th></tr>
+      {% for c in cat_revenue %}
+      <tr>
+        <td style="font-size:.78rem">{{ (c.get('category') or c.get('_id') or '—')[:22] }}</td>
+        <td style="font-weight:600">₹{{ "{:,.0f}".format(c.get('rev', 0)) }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="2" style="text-align:center;color:#6b7280;padding:2rem">No sales yet</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
 </div>
 
-<div class="card">
-  <div class="card-hdr"><h3>Revenue by Category</h3></div>
-  <table>
-    <tr><th>Category</th><th>Revenue</th></tr>
-    {% for c in cat_revenue %}
-    <tr>
-      <td style="font-size:.78rem">{{ c.category[:22] }}</td>
-      <td>₹{{ "{:,.0f}".format(c.rev) }}</td>
-    </tr>
-    {% else %}<tr><td colspan="2" style="text-align:center;color:#6b7280;padding:2rem">No sales yet</td></tr>
-    {% endfor %}
-  </table>
-</div>
-
-</div>
-
+<!-- Top Products -->
 <div class="card" style="margin-top:1.2rem">
   <div class="card-hdr"><h3>Top Selling Products</h3></div>
+  <div style="overflow-x:auto">
   <table>
     <tr><th>Product</th><th>Category</th><th>Price</th><th>Rating</th><th>Units Sold</th></tr>
     {% for p in top_products %}
     <tr>
-      <td><strong>{{ p.name[:40] }}</strong></td>
-      <td><span style="font-size:.72rem;color:#6b7280">{{ p.category }}</span></td>
-      <td>₹{{ "{:,.0f}".format(p.price) }}</td>
-      <td>⭐ {{ p.rating }}</td>
-      <td><strong>{{ p.sold }}</strong></td>
+      <td><strong>{{ p.get('name','—')[:40] }}</strong></td>
+      <td><span style="font-size:.72rem;color:#6b7280">{{ p.get('category','—') }}</span></td>
+      <td>₹{{ "{:,.0f}".format(p.get('price',0)) }}</td>
+      <td>⭐ {{ p.get('rating',0) }}</td>
+      <td><strong>{{ p.get('sold',0) }}</strong></td>
     </tr>
+    {% else %}
+    <tr><td colspan="5" style="text-align:center;color:#6b7280;padding:2rem">No sales data yet</td></tr>
     {% endfor %}
   </table>
+  </div>
 </div>
+
 {% endblock %}

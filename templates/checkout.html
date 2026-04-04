@@ -2,7 +2,40 @@
 {% block title %}Checkout — Nexacart{% endblock %}
 
 {% block head_extra %}
-<script src="https://js.stripe.com/v3/"></script>
+<script src="https://js.stripe.com/v3/">
+// ── UPI button: validate required fields first ──
+function goToUPI() {
+  const name    = document.getElementById('full-name').value.trim();
+  const address = document.getElementById('address').value.trim();
+  const city    = document.getElementById('city').value.trim();
+
+  if (!name) {
+    alert('Please enter your Full Name before proceeding to UPI payment.');
+    document.getElementById('full-name').focus(); return;
+  }
+  if (!address) {
+    alert('Please enter your Shipping Address before proceeding to UPI payment.');
+    document.getElementById('address').focus(); return;
+  }
+  if (!city) {
+    alert('Please enter your City before proceeding to UPI payment.');
+    document.getElementById('city').focus(); return;
+  }
+
+  // Save shipping details then redirect to UPI
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/save-shipping-and-upi';
+  const addField = (n,v) => { const i=document.createElement('input');i.type='hidden';i.name=n;i.value=v;form.appendChild(i); };
+  addField('name',    name);
+  addField('address', address);
+  addField('city',    city);
+  addField('pin',     document.getElementById('pin').value.trim());
+  addField('email',   document.getElementById('email').value.trim());
+  document.body.appendChild(form);
+  form.submit();
+}
+</script>
 {% endblock %}
 
 {% block navbar %}
@@ -84,11 +117,11 @@
 
       <div class="pay-divider"><span>or pay via</span></div>
 
-      <a href="{{ url_for('upi_payment') }}" class="upi-checkout-btn">
+      <button type="button" class="upi-checkout-btn" onclick="goToUPI()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
         Pay &#8377;{{ "{:,.0f}".format(grand_total) }} via UPI
         <span class="upi-apps-mini">GPay · PhonePe · Paytm · BHIM</span>
-      </a>
+      </button>
 
       <div class="secure-note">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -106,8 +139,18 @@
     {% for item in items %}
     <div class="order-item">
       <div class="order-item-icon">
-        <img src="{{ img_url(get_img(item['id'])) }}"
-             alt="" style="width:36px;height:36px;object-fit:cover;border-radius:4px">
+        {% set img_src = img_url(get_img(item['id'])) %}
+        {% if img_src and not img_src.startswith('data:') %}
+          <img src="{{ img_src }}" alt="{{ item['name'] }}"
+               style="width:44px;height:44px;object-fit:contain;border-radius:6px;
+                      background:#f8f9fa;padding:3px;border:1px solid #e5e7eb">
+        {% else %}
+          <div style="width:44px;height:44px;background:var(--parchment);border-radius:6px;
+                      display:flex;align-items:center;justify-content:center;
+                      font-size:1.4rem;border:1px solid #e5e7eb">
+            📦
+          </div>
+        {% endif %}
       </div>
       <div class="order-item-name">
         {{ item['name'][:35] }}{% if item['name']|length > 35 %}…{% endif %}
@@ -150,27 +193,187 @@
 
 {% block scripts %}
 <script>
-  window.STRIPE_PUB_KEY = "{{ stripe_pub_key }}";
+const STRIPE_PUB_KEY = "{{ stripe_pub_key }}";
+const AMOUNT_PAISE   = {{ amount_paise }};
+const IS_TEST_KEY    = !STRIPE_PUB_KEY || STRIPE_PUB_KEY.startsWith('pk_test_YOUR');
 
-  // Auto-fill city from PIN code
-  let pinTimer;
-  function lookupPin(pin) {
-    clearTimeout(pinTimer);
-    if (pin.length !== 6) return;
-    pinTimer = setTimeout(async () => {
-      try {
-        const r = await fetch('/api/pincode/' + pin);
-        const d = await r.json();
-        if (d.city) {
-          const cityEl = document.getElementById('city');
-          if (cityEl && !cityEl.value) {
-            cityEl.value = d.city;
-            cityEl.style.borderColor = 'var(--moss)';
-            setTimeout(()=>cityEl.style.borderColor='', 2000);
-          }
+// ── Auto-fill city from PIN code ──
+let pinTimer;
+function lookupPin(pin) {
+  clearTimeout(pinTimer);
+  if (pin.length !== 6) return;
+  pinTimer = setTimeout(async () => {
+    try {
+      const r = await fetch('/api/pincode/' + pin);
+      const d = await r.json();
+      if (d.city) {
+        const el = document.getElementById('city');
+        if (el && !el.value) {
+          el.value = d.city;
+          el.style.borderColor = 'var(--moss)';
+          setTimeout(()=>el.style.borderColor='', 2000);
         }
-      } catch(e) {}
-    }, 500);
+      }
+    } catch(e) {}
+  }, 500);
+}
+
+// ── Stripe Integration ──
+let stripe, cardElement;
+
+if (IS_TEST_KEY) {
+  // No real Stripe key — show demo mode notice and simulate payment
+  document.getElementById('card-element').innerHTML =
+    '<div style="background:#fffbeb;border:1.5px dashed #f59e0b;border-radius:8px;padding:1rem;font-size:.83rem;color:#92400e;line-height:1.6">' +
+    '<strong>⚠️ Demo Mode</strong><br>No Stripe key configured. Click Pay to simulate a successful payment.<br>' +
+    '<span style="font-size:.72rem;color:#b45309">Set STRIPE_PUBLISHABLE_KEY in your .env to enable real payments.</span>' +
+    '</div>';
+
+  document.getElementById('payment-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('pay-btn');
+    const name    = document.getElementById('full-name').value.trim();
+    const address = document.getElementById('address').value.trim();
+    const city    = document.getElementById('city').value.trim();
+    if (!name || !address || !city) {
+      alert('Please fill in Name, Address, and City.'); return;
+    }
+    btn.disabled = true;
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg> Processing…';
+    // Simulate 1.5s processing then redirect to success
+    await new Promise(r => setTimeout(r, 1500));
+    // POST to payment_success
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/payment_success';
+    document.body.appendChild(form);
+    form.submit();
+  });
+} else {
+  // Real Stripe key — mount card element and handle payment
+  stripe = Stripe(STRIPE_PUB_KEY);
+  const elements = stripe.elements({
+    fonts: [{ cssSrc: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500' }]
+  });
+  cardElement = elements.create('card', {
+    style: {
+      base: {
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: '16px',
+        color: '#1c1c18',
+        '::placeholder': { color: '#9ca3af' },
+        iconColor: '#2d5016',
+      },
+      invalid: { color: '#dc2626', iconColor: '#dc2626' },
+    },
+    hidePostalCode: true,
+  });
+  cardElement.mount('#card-element');
+
+  cardElement.on('change', function(e) {
+    const el = document.getElementById('card-errors');
+    el.textContent = e.error ? e.error.message : '';
+  });
+
+  document.getElementById('payment-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn     = document.getElementById('pay-btn');
+    const name    = document.getElementById('full-name').value.trim();
+    const email   = document.getElementById('email').value.trim();
+    const address = document.getElementById('address').value.trim();
+    const city    = document.getElementById('city').value.trim();
+    const pin     = document.getElementById('pin').value.trim();
+
+    if (!name || !address || !city) {
+      document.getElementById('card-errors').textContent =
+        'Please fill in all required fields.'; return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Processing…';
+
+    try {
+      // Create PaymentMethod
+      const { paymentMethod, error } = await stripe.createPaymentMethod({
+        type: 'card',
+        card: cardElement,
+        billing_details: {
+          name, email,
+          address: { city, postal_code: pin, country: 'IN', line1: address },
+        },
+      });
+
+      if (error) {
+        document.getElementById('card-errors').textContent = error.message;
+        btn.disabled = false;
+        btn.innerHTML = 'Pay ₹{{ "{:,.0f}".format(grand_total) }} via Card';
+        return;
+      }
+
+      // Send to backend
+      const r = await fetch('/checkout/stripe-pay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          payment_method_id: paymentMethod.id,
+          name, email, address, city, pin,
+        }),
+      });
+      const data = await r.json();
+
+      if (data.requires_action) {
+        // 3D Secure
+        const result = await stripe.handleCardAction(data.payment_intent_client_secret);
+        if (result.error) {
+          document.getElementById('card-errors').textContent = result.error.message;
+          btn.disabled = false; btn.textContent = 'Pay ₹{{ "{:,.0f}".format(grand_total) }} via Card';
+        } else {
+          window.location.href = '/payment_success';
+        }
+      } else if (data.success) {
+        window.location.href = '/payment_success';
+      } else {
+        document.getElementById('card-errors').textContent = data.error || 'Payment failed. Please try again.';
+        btn.disabled = false; btn.textContent = 'Pay ₹{{ "{:,.0f}".format(grand_total) }} via Card';
+      }
+    } catch(err) {
+      document.getElementById('card-errors').textContent = 'Network error. Please try again.';
+      btn.disabled = false; btn.textContent = 'Retry Payment';
+    }
+  });
+}
+
+// ── UPI button: validate required fields first ──
+function goToUPI() {
+  const name    = document.getElementById('full-name').value.trim();
+  const address = document.getElementById('address').value.trim();
+  const city    = document.getElementById('city').value.trim();
+
+  if (!name) {
+    alert('Please enter your Full Name before proceeding to UPI payment.');
+    document.getElementById('full-name').focus(); return;
   }
+  if (!address) {
+    alert('Please enter your Shipping Address before proceeding to UPI payment.');
+    document.getElementById('address').focus(); return;
+  }
+  if (!city) {
+    alert('Please enter your City before proceeding to UPI payment.');
+    document.getElementById('city').focus(); return;
+  }
+
+  // Save shipping details then redirect to UPI
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/save-shipping-and-upi';
+  const addField = (n,v) => { const i=document.createElement('input');i.type='hidden';i.name=n;i.value=v;form.appendChild(i); };
+  addField('name',    name);
+  addField('address', address);
+  addField('city',    city);
+  addField('pin',     document.getElementById('pin').value.trim());
+  addField('email',   document.getElementById('email').value.trim());
+  document.body.appendChild(form);
+  form.submit();
+}
 </script>
 {% endblock %}

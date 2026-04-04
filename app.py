@@ -1037,27 +1037,77 @@ def checkout():
         stripe_pub_key=STRIPE_PUBLISHABLE_KEY,
         cart_count=get_cart_count(uid), **t)
 
-@app.route("/payment_success", methods=["GET","POST"])
+@app.route("/checkout/stripe-pay", methods=["POST"])
 @login_required
-def payment_success():
+def stripe_pay():
+    """Handle Stripe card payment via API."""
+    import json
+    try:
+        import stripe as stripe_lib
+        stripe_lib.api_key = STRIPE_SECRET_KEY
+    except ImportError:
+        return jsonify({"error": "Stripe not installed. Run: pip install stripe"}), 500
+
     uid   = get_user_id()
     items = get_cart_items(uid)
+    if not items:
+        return jsonify({"error": "Cart is empty"}), 400
+
     subtotal     = sum(i["price"]*i["quantity"] for i in items)
-    discount_pct = session.get("discount_pct",0)
-    applied_code = session.get("promo_code","")
-    t   = calc_totals(subtotal,discount_pct)
-    ref = f"NXC-{random.randint(100000,999999)}"
-    user = col("users").find_one({"seq_id":uid})
-    oid  = next_seq("orders")
+    discount_pct = session.get("discount_pct", 0)
+    t = calc_totals(subtotal, discount_pct)
+    amount_paise = int(t["grand_total"] * 100)
+
+    data = request.get_json(silent=True) or {}
+    payment_method_id = data.get("payment_method_id","")
+    name    = data.get("name","")
+    address = data.get("address","")
+    city    = data.get("city","")
+    pin     = data.get("pin","")
+
+    # Save address to user profile
+    col("users").update_one(
+        {"seq_id": uid},
+        {"$set": {"address": address, "city": city, "pincode": pin}}
+    )
+
+    try:
+        intent = stripe_lib.PaymentIntent.create(
+            amount=amount_paise,
+            currency="inr",
+            payment_method=payment_method_id,
+            confirm=True,
+            automatic_payment_methods={"enabled": True, "allow_redirects": "never"},
+            description=f"Nexacart order for {name}",
+            receipt_email=data.get("email",""),
+        )
+        if intent.status == "requires_action":
+            return jsonify({
+                "requires_action": True,
+                "payment_intent_client_secret": intent.client_secret
+            })
+        elif intent.status == "succeeded":
+            # Create order
+            _create_order(uid, t, subtotal, address, city, pin, "Stripe/Card", intent.id)
+            return jsonify({"success": True})
+        else:
+            return jsonify({"error": f"Payment status: {intent.status}"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+def _create_order(uid, t, subtotal, address, city, pin, method, txn_id=""):
+    """Helper to create an order and clear cart."""
+    items    = get_cart_items(uid)
+    ref      = f"NXC-{random.randint(100000,999999)}"
+    oid      = next_seq("orders")
+    promo    = session.get("promo_code","")
     col("orders").insert_one({
         "seq_id":oid,"user_id":uid,"order_ref":ref,
         "total":t["grand_total"],"subtotal":subtotal,
         "discount_amt":t["discount_amt"],"gst_amt":t["gst_amt"],
-        "promo_code":applied_code,"status":"Confirmed",
-        "address":user.get("address","") if user else "",
-        "city":user.get("city","") if user else "",
-        "pincode":user.get("pincode","") if user else "",
-        "payment_method":"Stripe/Card","payment_txn_id":"",
+        "promo_code":promo,"status":"Confirmed",
+        "address":address,"city":city,"pincode":pin,
+        "payment_method":method,"payment_txn_id":txn_id,
         "created_at":datetime.datetime.utcnow()
     })
     for i in items:
@@ -1067,9 +1117,49 @@ def payment_success():
         })
     col("cart").delete_many({"user_id":uid})
     session.pop("promo_code",None); session.pop("discount_pct",None)
+    return ref
+
+
+@app.route("/payment_success", methods=["GET","POST"])
+@login_required
+def payment_success():
+    """Called after demo-mode payment or redirect from Stripe."""
+    uid          = get_user_id()
+    items        = get_cart_items(uid)
+    if not items:
+        # Order may already be created by stripe_pay — just show success
+        return render_template("success.html", username=session["user"],
+            order_ref="NXC-" + str(random.randint(100000,999999)),
+            total=0, items=[], promo="", cart_count=0)
+    subtotal     = sum(i["price"]*i["quantity"] for i in items)
+    discount_pct = session.get("discount_pct", 0)
+    applied_code = session.get("promo_code","")
+    t   = calc_totals(subtotal, discount_pct)
+    user = col("users").find_one({"seq_id":uid})
+    ref = _create_order(uid, t, subtotal,
+        user.get("address","") if user else "",
+        user.get("city","")    if user else "",
+        user.get("pincode","") if user else "",
+        "Stripe/Card", "")
     return render_template("success.html", username=session["user"],
         order_ref=ref, total=t["grand_total"], items=items,
         promo=applied_code, cart_count=0)
+
+@app.route("/save-shipping-and-upi", methods=["POST"])
+@login_required
+def save_shipping_and_upi():
+    """Save shipping details from checkout then redirect to UPI payment page."""
+    uid = get_user_id()
+    address = request.form.get("address","").strip()
+    city    = request.form.get("city","").strip()
+    pin     = request.form.get("pin","").strip()
+    # Save to user profile for convenience
+    col("users").update_one(
+        {"seq_id": uid},
+        {"$set": {"address": address, "city": city, "pincode": pin}}
+    )
+    return redirect(url_for("upi_payment"))
+
 
 @app.route("/upi-payment", methods=["GET","POST"])
 @login_required
