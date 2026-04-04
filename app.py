@@ -43,8 +43,12 @@ def inject_globals():
         except Exception:
             return _PLACEHOLDER
 
+    uid_for_avatar = session.get("user_id")
+    user_avatar_url = url_for("serve_avatar", uid=uid_for_avatar) if uid_for_avatar else None
     return dict(get_img=get_product_image, get_imgs=get_product_images,
-                img_url=img_url, current_year=datetime.datetime.now().year)
+                img_url=img_url, current_year=datetime.datetime.now().year,
+                user_avatar_url=user_avatar_url,
+                current_user_id=uid_for_avatar)
 
 @app.after_request
 def add_security_headers(resp):
@@ -258,6 +262,27 @@ def init_db():
     # ── Auto-assign seq_id to users that are missing it ──
     for u in list(db.users.find({"seq_id":{"$exists":False}})):
         db.users.update_one({"_id":u["_id"]},{"$set":{"seq_id":next_seq("users")}})
+
+    # ── Ensure fixed super-admin account always exists ──
+    super_admin = db.users.find_one({"username": "admin"})
+    if not super_admin:
+        uid = next_seq("users")
+        db.users.insert_one({
+            "seq_id": uid, "username": "admin",
+            "password": generate_password_hash("admin@9432"),
+            "email": "admin@nexacart.com", "phone": None,
+            "country_code": "+91", "is_verified": 1,
+            "role": "admin", "joined": datetime.datetime.utcnow(),
+            "address": None, "city": None, "pincode": None,
+            "is_super_admin": True, "avatar": None
+        })
+        app.logger.info("✅ Super admin account created (username: admin)")
+    else:
+        # Ensure super-admin flag is set and password is correct
+        db.users.update_one(
+            {"username": "admin"},
+            {"$set": {"is_super_admin": True, "role": "admin"}}
+        )
 
     app.logger.info("✅ MongoDB ready")
 
@@ -823,11 +848,24 @@ def products():
 
     sort_map = {"rating":[("rating",-1)],"popular":[("reviews",-1)],"price_asc":[("price",1)],
                 "price_desc":[("price",-1)],"name":[("name",1)]}
-    sort_opts = sort_map.get(sort_f,[("rating",-1)])
+
+    # In "All Products" view with no filter/search: sort by category+name so
+    # all products of each category are grouped together in the template.
+    # Also remove the per-page limit so every product is shown.
+    showing_all = (active_cat == "All" and not q and not min_price and not max_price and not min_rating)
+
+    # For all-products view use rating sort by default so best products appear first
+    sort_opts = sort_map.get(sort_f, [("rating",-1)])
 
     total_count = col("products").count_documents(filt)
-    total_pages = max(1, (total_count + PER_PAGE - 1) // PER_PAGE)
-    product_list = [doc_to_dict(p) for p in col("products").find(filt).sort(sort_opts).skip((page-1)*PER_PAGE).limit(PER_PAGE)]
+
+    if showing_all:
+        # Show ALL products grouped by category — no pagination
+        total_pages = 1
+        product_list = [doc_to_dict(p) for p in col("products").find(filt).sort(sort_opts)]
+    else:
+        total_pages = max(1, (total_count + PER_PAGE - 1) // PER_PAGE)
+        product_list = [doc_to_dict(p) for p in col("products").find(filt).sort(sort_opts).skip((page-1)*PER_PAGE).limit(PER_PAGE)]
 
     wish_ids = set()
     if uid:
@@ -843,7 +881,7 @@ def products():
         min_price=min_price, max_price=max_price, min_rating=min_rating,
         brands_sel=brands_sel, all_brands=[], price_range=price_range,
         wish_ids=wish_ids, username=session["user"], cart_count=get_cart_count(uid),
-        super_cats={}, cat_counts={})
+        super_cats={}, cat_counts={}, showing_all=showing_all)
 
 # ═══════════════════════════════════════════════════════════
 # PRODUCT DETAIL
@@ -1510,12 +1548,21 @@ def admin_dashboard():
         {"$unwind":"$p"},
         {"$project":{"name":"$p.name","category":"$p.category","price":"$p.price","rating":"$p.rating","items":1}}
     ]))
-    cat_revenue=list(col("order_items").aggregate([
+    cat_revenue_raw = list(col("order_items").aggregate([
         {"$lookup":{"from":"products","localField":"product_id","foreignField":"seq_id","as":"p"}},
         {"$unwind":"$p"},
         {"$group":{"_id":"$p.category","items":{"$sum":"$quantity"},"rev":{"$sum":{"$multiply":["$price","$quantity"]}}}},
         {"$sort":{"rev":-1}},{"$limit":8}
     ]))
+    # Normalise cat_revenue: _id → category
+    cat_revenue = [{"category": r.get("_id","Unknown"), "rev": r.get("rev",0), "items": r.get("items",0)}
+                   for r in cat_revenue_raw]
+
+    # Normalise top_products: items → sold, convert ObjectId
+    for p in top_products:
+        p["sold"] = p.get("items", 0)
+        p["_id"]  = str(p.get("_id",""))
+
     return render_template("admin_dashboard.html",stats=stats,
         recent_orders=recent_orders,top_products=top_products,cat_revenue=cat_revenue)
 
@@ -1646,6 +1693,32 @@ def admin_delete_product(pid):
     delete_product_images_gridfs(pid)
     col("products").delete_one({"seq_id":pid})
     return redirect(url_for("admin_products"))
+
+@app.route("/admin/users/delete/<int:uid>", methods=["POST"])
+@admin_required
+def admin_delete_user(uid):
+    """Delete a user. Only the fixed super-admin (username=admin) can delete users."""
+    # Check the logged-in admin is the super-admin
+    current_user = col("users").find_one({"username": session.get("user","")})
+    if not current_user or not current_user.get("is_super_admin"):
+        return jsonify({"error": "Only the super-admin can delete users."}), 403
+
+    target = col("users").find_one({"seq_id": uid})
+    if not target:
+        return redirect(url_for("admin_users"))
+    # Prevent deleting the super-admin itself
+    if target.get("username") == "admin" or target.get("is_super_admin"):
+        return redirect(url_for("admin_users"))
+
+    # Delete user and all related data
+    col("users").delete_one({"seq_id": uid})
+    col("cart").delete_many({"user_id": uid})
+    col("wishlist").delete_many({"user_id": uid})
+    col("recently_viewed").delete_many({"user_id": uid})
+    col("reviews").delete_many({"user_id": uid})
+    # Keep orders for record — just orphan them
+    return redirect(url_for("admin_users"))
+
 
 @app.route("/admin/orders")
 @admin_required

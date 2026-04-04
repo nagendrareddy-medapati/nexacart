@@ -117,18 +117,9 @@
 
     {% if products %}
       {% if active_cat == 'All' and not search_q %}
-        {% set ns = namespace(last_cat='') %}
-        {% for p in products %}
-          {% if p['category'] != ns.last_cat %}
-            {% if ns.last_cat != '' %}</div>{% endif %}
-            <div class="section-header">
-              <span class="section-icon">{{ cat_meta.get(p['category'],('📦','bg-blue'))[0] }}</span>
-              <h3 class="section-title">{{ p['category'] }}</h3>
-              <a href="{{ url_for('products', cat=p['category']) }}" class="section-see-all">See all →</a>
-            </div>
-            <div class="products-grid">
-            {% set ns.last_cat = p['category'] %}
-          {% endif %}
+        {# All Products: show uniform grid, all products, no category headers #}
+        <div class="products-grid">
+          {% for p in products %}
           <div class="product-card">
             {% if p['badge'] %}<div class="card-badge badge-{{ p['badge']|lower|replace(' ','') }}">{{ p['badge'] }}</div>{% endif %}
             <a href="{{ url_for('product_detail', pid=p['id']) }}" class="card-thumb-link">
@@ -151,7 +142,7 @@
               </div>
             </div>
           </div>
-        {% endfor %}
+          {% endfor %}
         </div>
       {% else %}
         <div class="products-grid">
