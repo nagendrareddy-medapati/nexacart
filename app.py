@@ -43,12 +43,8 @@ def inject_globals():
         except Exception:
             return _PLACEHOLDER
 
-    uid_for_avatar = session.get("user_id")
-    user_avatar_url = url_for("serve_avatar", uid=uid_for_avatar) if uid_for_avatar else None
     return dict(get_img=get_product_image, get_imgs=get_product_images,
-                img_url=img_url, current_year=datetime.datetime.now().year,
-                user_avatar_url=user_avatar_url,
-                current_user_id=uid_for_avatar)
+                img_url=img_url, current_year=datetime.datetime.now().year)
 
 @app.after_request
 def add_security_headers(resp):
@@ -262,27 +258,6 @@ def init_db():
     # ── Auto-assign seq_id to users that are missing it ──
     for u in list(db.users.find({"seq_id":{"$exists":False}})):
         db.users.update_one({"_id":u["_id"]},{"$set":{"seq_id":next_seq("users")}})
-
-    # ── Ensure fixed super-admin account always exists ──
-    super_admin = db.users.find_one({"username": "admin"})
-    if not super_admin:
-        uid = next_seq("users")
-        db.users.insert_one({
-            "seq_id": uid, "username": "admin",
-            "password": generate_password_hash("admin@9432"),
-            "email": "admin@nexacart.com", "phone": None,
-            "country_code": "+91", "is_verified": 1,
-            "role": "admin", "joined": datetime.datetime.utcnow(),
-            "address": None, "city": None, "pincode": None,
-            "is_super_admin": True, "avatar": None
-        })
-        app.logger.info("✅ Super admin account created (username: admin)")
-    else:
-        # Ensure super-admin flag is set and password is correct
-        db.users.update_one(
-            {"username": "admin"},
-            {"$set": {"is_super_admin": True, "role": "admin"}}
-        )
 
     app.logger.info("✅ MongoDB ready")
 
@@ -1693,31 +1668,6 @@ def admin_delete_product(pid):
     delete_product_images_gridfs(pid)
     col("products").delete_one({"seq_id":pid})
     return redirect(url_for("admin_products"))
-
-@app.route("/admin/users/delete/<int:uid>", methods=["POST"])
-@admin_required
-def admin_delete_user(uid):
-    """Delete a user. Only the fixed super-admin (username=admin) can delete users."""
-    # Check the logged-in admin is the super-admin
-    current_user = col("users").find_one({"username": session.get("user","")})
-    if not current_user or not current_user.get("is_super_admin"):
-        return jsonify({"error": "Only the super-admin can delete users."}), 403
-
-    target = col("users").find_one({"seq_id": uid})
-    if not target:
-        return redirect(url_for("admin_users"))
-    # Prevent deleting the super-admin itself
-    if target.get("username") == "admin" or target.get("is_super_admin"):
-        return redirect(url_for("admin_users"))
-
-    # Delete user and all related data
-    col("users").delete_one({"seq_id": uid})
-    col("cart").delete_many({"user_id": uid})
-    col("wishlist").delete_many({"user_id": uid})
-    col("recently_viewed").delete_many({"user_id": uid})
-    col("reviews").delete_many({"user_id": uid})
-    # Keep orders for record — just orphan them
-    return redirect(url_for("admin_users"))
 
 
 @app.route("/admin/orders")
