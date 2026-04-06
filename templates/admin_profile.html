@@ -9,11 +9,22 @@
   <div>
     <div class="card">
       <div style="padding:2rem;text-align:center;border-bottom:1px solid var(--border)">
-        <div style="width:80px;height:80px;border-radius:50%;background:var(--forest);
-                    display:flex;align-items:center;justify-content:center;
-                    font-size:2rem;margin:0 auto 1rem;box-shadow:0 4px 12px rgba(45,80,22,.3)">
-          ⚙️
+        <div style="width:80px;height:80px;border-radius:50%;margin:0 auto 1rem;position:relative;cursor:pointer" onclick="document.getElementById('adminAvatarInput').click()">
+          {% set admin_user = None %}
+          {% if session.get('user_id') %}
+            {# Show admin avatar if set #}
+            <img src="/profile-picture/{{ session.get('user_id', 0) }}" alt="Admin" 
+                 onerror="this.style.display='none';document.getElementById('adminAvatarFallback').style.display='flex'"
+                 style="width:80px;height:80px;border-radius:50%;object-fit:cover;box-shadow:0 4px 12px rgba(45,80,22,.3)">
+            <div id="adminAvatarFallback" style="width:80px;height:80px;border-radius:50%;background:var(--forest);display:none;align-items:center;justify-content:center;font-size:2rem;box-shadow:0 4px 12px rgba(45,80,22,.3);position:absolute;top:0;left:0">⚙️</div>
+          {% else %}
+            <div style="width:80px;height:80px;border-radius:50%;background:var(--forest);display:flex;align-items:center;justify-content:center;font-size:2rem;box-shadow:0 4px 12px rgba(45,80,22,.3)">⚙️</div>
+          {% endif %}
+          <div style="position:absolute;bottom:0;right:0;background:var(--gold);border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:.65rem;color:var(--forest);font-weight:700;border:2px solid #fff">📷</div>
         </div>
+        <form method="post" enctype="multipart/form-data" action="/admin/profile-picture/{{ session.get('user_id', 0) }}" style="display:none">
+          <input type="file" id="adminAvatarInput" name="avatar" accept="image/*" onchange="this.form.submit()">
+        </form>
         <div style="font-size:1.1rem;font-weight:700;color:var(--ink)">{{ admin_name }}</div>
         <div style="font-size:.78rem;color:var(--muted);margin-top:.25rem">System Administrator</div>
         <div style="margin-top:.8rem;display:inline-flex;align-items:center;gap:.4rem;

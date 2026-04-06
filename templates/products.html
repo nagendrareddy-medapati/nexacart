@@ -28,12 +28,12 @@
     </a>
     <div class="profile-menu">
       <button class="profile-btn" onclick="toggleProfile()">
-        <span class="profile-avatar">{{ username[0].upper() }}</span>
+        {% if user_avatar_url() %}<img src="{{ user_avatar_url() }}" class="profile-avatar-img" alt="{{ username }}">{% else %}<span class="profile-avatar">{{ username[0].upper() }}</span>{% endif %}
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
       </button>
       <div class="profile-dropdown" id="profileDropdown">
         <div class="pd-header">
-          <div class="pd-avatar">{{ username[0].upper() }}</div>
+          {% if user_avatar_url() %}<img src="{{ user_avatar_url() }}" class="pd-avatar-img" alt="{{ username }}">{% else %}<div class="pd-avatar">{{ username[0].upper() }}</div>{% endif %}
           <div><div class="pd-username">{{ username }}</div><div class="pd-tagline">My Account</div></div>
         </div>
         <div class="pd-divider"></div>

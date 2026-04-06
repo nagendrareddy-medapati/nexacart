@@ -26,7 +26,7 @@
     </a>
     <div class="profile-menu">
       <button class="profile-btn" onclick="toggleProfile()">
-        <span class="profile-avatar">{{ username[0].upper() }}</span>
+        {% if user_avatar_url() %}<img src="{{ user_avatar_url() }}" class="profile-avatar-img" alt="{{ username }}">{% else %}<span class="profile-avatar">{{ username[0].upper() }}</span>{% endif %}
         <span class="profile-name">{{ username }}</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
       </button>
@@ -34,7 +34,7 @@
 
         <!-- Header -->
         <div class="pd-header">
-          <div class="pd-avatar">{{ username[0].upper() }}</div>
+          {% if user_avatar_url() %}<img src="{{ user_avatar_url() }}" class="pd-avatar-img" alt="{{ username }}">{% else %}<div class="pd-avatar">{{ username[0].upper() }}</div>{% endif %}
           <div>
             <div class="pd-username">{{ username }}</div>
             <a href="{{ url_for('register') }}" class="pd-signup">New customer? <strong>Sign Up</strong></a>
@@ -146,10 +146,15 @@
   </div>
   <div class="hero-visual">
     <div class="hero-cards">
-      {% for p in trending[:4] %}
-      <div class="hero-card hero-card-{{ loop.index }}">
-        <img src="{{ img_url(get_img(p['id'])) }}" alt="{{ p['name'] }}" class="hero-card-img">
-        <span class="hero-card-name">{{ p['name'][:22] }}{% if p['name']|length > 22 %}…{% endif %}</span>
+      {% for p in trending[:8] %}
+      <div class="hero-card hero-card-{{ ((loop.index0) % 4) + 1 }}">
+        {% set img = get_img(p['id']) %}
+        {% if img %}
+          <img src="{{ img_url(img) }}" alt="{{ p['name'] }}" class="hero-card-img">
+        {% else %}
+          <div class="hero-card-emoji">{{ p.get('icon','📦') }}</div>
+        {% endif %}
+        <span class="hero-card-name">{{ p['name'][:20] }}{% if p['name']|length > 20 %}…{% endif %}</span>
       </div>
       {% endfor %}
     </div>
@@ -763,69 +768,6 @@
   </div>
 </div>
 {% endif %}
-
-<!-- ═══════════════════════════════════════════════════════════
-     FULL FOOTER
-═══════════════════════════════════════════════════════════ -->
-<footer class="site-footer">
-  <div class="footer-top">
-    <div class="footer-inner">
-
-      <div class="footer-col">
-        <div class="footer-col-title">ABOUT</div>
-        <a href="{{ url_for('about') }}">Contact Us</a>
-        <a href="{{ url_for('about') }}">About Us</a>
-        <a href="{{ url_for('careers') }}">Careers</a>
-        <a href="{{ url_for('about') }}">Nexacart Stories</a>
-        <a href="{{ url_for('about') }}">Press</a>
-        <a href="{{ url_for('about') }}">Corporate Information</a>
-      </div>
-
-      <div class="footer-col">
-        <div class="footer-col-title">HELP</div>
-        <a href="{{ url_for('help_page') }}">Payments</a>
-        <a href="{{ url_for('help_page') }}">Shipping</a>
-        <a href="{{ url_for('cancellation') }}">Cancellation &amp; Returns</a>
-        <a href="{{ url_for('help_page') }}">FAQ</a>
-        <a href="{{ url_for('help_page') }}">Report Infringement</a>
-      </div>
-
-      <div class="footer-col">
-        <div class="footer-col-title">POLICY</div>
-        <a href="{{ url_for('cancellation') }}">Cancellation &amp; Returns</a>
-        <a href="{{ url_for('terms') }}">Terms Of Use</a>
-        <a href="{{ url_for('privacy') }}">Security</a>
-        <a href="{{ url_for('privacy') }}">Privacy</a>
-        <a href="{{ url_for('terms') }}">Sitemap</a>
-        <a href="{{ url_for('terms') }}">EPR Compliance</a>
-      </div>
-
-      <div class="footer-col">
-        <div class="footer-col-title">MY ACCOUNT</div>
-        <a href="{{ url_for('profile') }}">My Profile</a>
-        <a href="{{ url_for('orders') }}">My Orders</a>
-        <a href="{{ url_for('wishlist') }}">My Wishlist</a>
-        <a href="{{ url_for('cart') }}">My Cart</a>
-        <a href="{{ url_for('rewards') }}">Rewards &amp; Gift Cards</a>
-      </div>
-
-    </div>
-  </div>
-
-  <div class="footer-bottom-bar">
-    <div class="footer-bottom-inner">
-      <div class="footer-brand-row">
-        <span class="footer-logo-sm"><span class="nb-dot"></span> Nexacart</span>
-        <span class="footer-tagline-sm">Premium shopping, curated for you.</span>
-      </div>
-      <div class="footer-legal">
-        &copy; {{ current_year }} Nexacart. All rights reserved.
-        &nbsp;·&nbsp; <a href="{{ url_for('privacy') }}">Privacy</a>
-        &nbsp;·&nbsp; <a href="{{ url_for('terms') }}">Terms</a>
-      </div>
-    </div>
-  </div>
-</footer>
 
 {% endblock %}
 

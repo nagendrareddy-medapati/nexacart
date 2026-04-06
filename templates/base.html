@@ -21,6 +21,60 @@
   {% block navbar %}{% endblock %}
   {% block content %}{% endblock %}
 
+
+  <!-- ═══════════════ SITE FOOTER ═══════════════ -->
+  {% block footer %}
+  {% if session.get('user') and not session.get('is_admin') %}
+  <footer class="site-footer" style="margin-bottom:60px">
+    <div class="footer-top">
+      <div class="footer-inner">
+        <div class="footer-col">
+          <div class="footer-col-title">ABOUT</div>
+          <a href="{{ url_for('about') }}">Contact Us</a>
+          <a href="{{ url_for('about') }}">About Us</a>
+          <a href="{{ url_for('careers') }}">Careers</a>
+          <a href="{{ url_for('about') }}">Press</a>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col-title">HELP</div>
+          <a href="{{ url_for('help_page') }}">Payments</a>
+          <a href="{{ url_for('help_page') }}">Shipping</a>
+          <a href="{{ url_for('cancellation') }}">Cancellation &amp; Returns</a>
+          <a href="{{ url_for('help_page') }}">FAQ</a>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col-title">POLICY</div>
+          <a href="{{ url_for('cancellation') }}">Cancellation &amp; Returns</a>
+          <a href="{{ url_for('terms') }}">Terms Of Use</a>
+          <a href="{{ url_for('privacy') }}">Privacy</a>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col-title">MY ACCOUNT</div>
+          <a href="{{ url_for('profile') }}">My Profile</a>
+          <a href="{{ url_for('orders') }}">My Orders</a>
+          <a href="{{ url_for('wishlist') }}">My Wishlist</a>
+          <a href="{{ url_for('cart') }}">My Cart</a>
+          <a href="{{ url_for('rewards') }}">Rewards &amp; Gift Cards</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom-bar">
+      <div class="footer-bottom-inner">
+        <div class="footer-brand-row">
+          <span class="footer-logo-sm"><span class="nb-dot"></span> Nexacart</span>
+          <span class="footer-tagline-sm">Premium shopping, curated for you.</span>
+        </div>
+        <div class="footer-legal">
+          &copy; {{ current_year }} Nexacart. All rights reserved.
+          &nbsp;·&nbsp; <a href="{{ url_for('privacy') }}">Privacy</a>
+          &nbsp;·&nbsp; <a href="{{ url_for('terms') }}">Terms</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+  {% endif %}
+  {% endblock %}
+
   <!-- ══════════ AI CHATBOT WIDGET ══════════ -->
   {% if session.get('user') and not session.get('is_admin') %}
   <div id="nexaChatWidget">

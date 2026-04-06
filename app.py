@@ -43,7 +43,19 @@ def inject_globals():
         except Exception:
             return _PLACEHOLDER
 
-    return dict(get_img=get_product_image, get_imgs=get_product_images,
+    # Get current user's avatar URL if logged in
+    def user_avatar_url():
+        uid = session.get("user_id")
+        if uid:
+            try:
+                u = col("users").find_one({"seq_id": uid}, {"avatar": 1})
+                if u and u.get("avatar"):
+                    return f"/profile-picture/{uid}"
+            except Exception:
+                pass
+        return None
+
+    return dict(get_img=get_product_image, get_imgs=get_product_images, user_avatar_url=user_avatar_url,
                 img_url=img_url, current_year=datetime.datetime.now().year)
 
 @app.after_request
@@ -662,6 +674,14 @@ def insert_sample_products():
         ("Samsonite Carry-on Bag",12000,"Travel & Luggage","🧳","Premium",4.7,4320,0),
         ("Neck Pillow Memory Foam",999,"Travel & Luggage","😴","Best Seller",4.5,18900,0),
         ("Passport Holder Leather",799,"Travel & Luggage","📋",None,4.4,14300,0),
+        ("Samsung Galaxy Tab S9",74999,"Electronics","📱","Best Seller",4.7,9870,1),
+        ("Noise ColorFit Ultra 3",7999,"Wearables","⌚","New",4.6,12300,1),
+        ("Nivea Men Face Wash",299,"Beauty & Skincare","🧴","Best Seller",4.4,56700,1),
+        ("Philips Air Fryer XL HD9270",12999,"Appliances","🍟","Premium",4.6,8760,1),
+        ("Fastrack Casual Watch",1995,"Wearables","⌚","Budget Pick",4.3,23400,1),
+        ("boAt Airdopes 141",1299,"Audio","🎧","Best Seller",4.4,67800,1),
+        ("Wildcraft Trident Backpack",2499,"Travel & Luggage","🎒","Best Seller",4.5,14500,1),
+        ("Prestige Mixer Grinder 750W",4299,"Appliances","🫙","Best Seller",4.5,34500,1),
     ]
     docs = []
     for i,(name,price,cat,icon,badge,rating,reviews,trending) in enumerate(products,1):
@@ -1246,12 +1266,64 @@ def orders():
 # ═══════════════════════════════════════════════════════════
 # PROFILE
 # ═══════════════════════════════════════════════════════════
+
+def upload_profile_picture(file_obj, user_id):
+    """Store a user profile picture in MongoDB GridFS."""
+    try:
+        fs = get_fs()
+        filename = f"profile_{user_id}"
+        for existing in fs.find({"filename": filename}):
+            fs.delete(existing._id)
+        raw = file_obj.read()
+        img = PILImage.open(io.BytesIO(raw)).convert("RGB")
+        img.thumbnail((300, 300), PILImage.LANCZOS)
+        w, h = img.size
+        m = min(w, h)
+        img = img.crop(((w-m)//2, (h-m)//2, (w+m)//2, (h+m)//2))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=85, optimize=True)
+        buf.seek(0)
+        fs.put(buf, filename=filename, content_type="image/jpeg", user_id=user_id)
+        return filename
+    except Exception as e:
+        app.logger.error(f"Profile picture upload failed: {e}")
+        return None
+
+@app.route("/profile-picture/<int:user_id>")
+def serve_profile_picture(user_id):
+    from flask import send_file, Response
+    try:
+        fs = get_fs()
+        f = fs.find_one({"filename": f"profile_{user_id}"})
+        if f:
+            buf = io.BytesIO(f.read())
+            buf.seek(0)
+            return send_file(buf, mimetype="image/jpeg", max_age=3600)
+    except Exception as e:
+        app.logger.error(f"Profile picture serve error: {e}")
+    import base64
+    px = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=")
+    return Response(px, mimetype="image/png")
+
 @app.route("/profile", methods=["GET","POST"])
 @login_required
 def profile():
     uid=get_user_id(); msg=None
     if request.method=="POST":
         action=request.form.get("action")
+        if action=="upload_avatar":
+            f = request.files.get("avatar")
+            if f and f.filename:
+                ext = f.filename.rsplit(".",1)[-1].lower()
+                if ext in ("jpg","jpeg","png","webp","gif"):
+                    key = upload_profile_picture(f.stream, uid)
+                    if key:
+                        col("users").update_one({"seq_id": uid}, {"$set": {"avatar": key}})
+                        msg = "Profile picture updated!"
+                    else:
+                        msg = "error:Could not save profile picture."
+                else:
+                    msg = "error:Please upload a JPG, PNG or WebP image."
         if action=="update_info":
             col("users").update_one({"seq_id":uid},{"$set":{
                 "email":request.form.get("email",""),
@@ -1487,6 +1559,19 @@ def admin_profile():
     return render_template("admin_profile.html", stats=stats, recent_actions=recent_actions,
                            admin_name="Nexacart Admin")
 
+
+
+@app.route("/admin/profile-picture/<int:user_id>", methods=["POST"])
+@admin_required
+def admin_upload_profile_picture(user_id):
+    f = request.files.get("avatar")
+    if f and f.filename:
+        ext = f.filename.rsplit(".",1)[-1].lower()
+        if ext in ("jpg","jpeg","png","webp","gif"):
+            key = upload_profile_picture(f.stream, user_id)
+            if key:
+                col("users").update_one({"seq_id": user_id}, {"$set": {"avatar": key}})
+    return redirect(url_for("admin_profile"))
 
 @app.route("/admin/logout")
 def admin_logout():
@@ -1772,43 +1857,114 @@ def get_short_link(pid):
 @app.route("/api/chat", methods=["POST"])
 @login_required
 def api_chat():
-    import urllib.request, json as _json
-    data=request.get_json(silent=True) or {}
-    user_msg=(data.get("message","")).strip()[:500]
-    history=data.get("history",[])[-10:]
-    if not user_msg: return jsonify({"reply":"Please type a message."}),400
-    cats_str=", ".join(CATEGORY_META.keys())
-    system_prompt=(
-        "You are Nexa, a friendly AI shopping assistant for Nexacart, an Indian e-commerce site. "
-        "Help customers find products and answer questions about orders, delivery, returns, payments. "
-        "Store details: 326 products across categories: "+cats_str+". "
-        "Free delivery on all orders. 30-day returns. UPI + card payments. GST 9%. Delivery 3-5 days. "
-        "Promo codes: SAVE10 MARKET20 FIRST50. Be concise, warm and helpful in 1-3 sentences."
+    import urllib.request, urllib.error, json as _json
+    data = request.get_json(silent=True) or {}
+    user_msg = (data.get("message", "")).strip()[:500]
+    history = data.get("history", [])[-10:]
+    if not user_msg:
+        return jsonify({"reply": "Please type a message."}), 400
+
+    cats_str = ", ".join(CATEGORY_META.keys())
+    system_prompt = (
+        "You are Nexa, a friendly and knowledgeable AI shopping assistant for Nexacart, "
+        "a premium Indian e-commerce platform. Your job is to help customers find products, "
+        "answer questions about orders, delivery, returns, and payments. "
+        "Store details: 160+ products across 30 categories: " + cats_str + ". "
+        "Free delivery on all orders. 30-day easy returns. "
+        "Payments: UPI (GPay, PhonePe, Paytm, BHIM, Amazon Pay), Credit/Debit Cards. "
+        "GST: 9% included. Delivery: 3-5 business days. "
+        "Active promo codes: SAVE10 (10% off), MARKET20 (20% off), FIRST50 (50% off first order), "
+        "FASHION30 (30% off fashion), BEAUTY15 (15% off beauty). "
+        "Always be concise, warm, and helpful. Reply in 1-3 sentences. "
+        "If asked about a specific product, mention where to find it (category name)."
     )
-    messages=[]
+
+    # Build messages array with proper history
+    messages = []
     for h in history:
-        if h.get("role") in ("user","assistant") and h.get("content"):
-            messages.append({"role":h["role"],"content":str(h["content"])[:400]})
-    messages.append({"role":"user","content":user_msg})
-    api_key=os.environ.get("ANTHROPIC_API_KEY","")
+        role = h.get("role", "")
+        msg_content = h.get("content", "")
+        if role in ("user", "assistant") and msg_content:
+            messages.append({"role": role, "content": str(msg_content)[:400]})
+    messages.append({"role": "user", "content": user_msg})
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+
+    # Smart fallback when no API key
     if not api_key:
-        ml=user_msg.lower()
-        if any(w in ml for w in ["return","refund"]): reply="30-day easy returns! Visit your Orders page to request a return."
-        elif any(w in ml for w in ["deliver","ship"]): reply="Free delivery on all orders, arriving in 3-5 business days."
-        elif any(w in ml for w in ["promo","code","discount"]): reply="Use SAVE10 (10% off), MARKET20 (20% off), or FIRST50 (50% off first order)!"
-        elif any(w in ml for w in ["pay","upi","gpay","paytm"]): reply="We accept UPI (GPay, PhonePe, Paytm, BHIM) and Credit/Debit Cards."
-        elif any(w in ml for w in ["hello","hi","hey"]): reply="Hello! I am Nexa, your Nexacart assistant. How can I help?"
-        else: reply="I can help with products, delivery, returns and payments. What are you looking for?"
-        return jsonify({"reply":reply})
+        ml = user_msg.lower()
+        if any(w in ml for w in ["return", "refund", "exchange"]):
+            reply = "We offer 30-day easy returns on all products! 🔄 Go to your Orders page and click 'Return' on the item you'd like to send back."
+        elif any(w in ml for w in ["deliver", "ship", "track", "days"]):
+            reply = "We offer free delivery on all orders, arriving in 3–5 business days. 🚚 Track your order from the Orders page!"
+        elif any(w in ml for w in ["promo", "code", "discount", "coupon", "offer"]):
+            reply = "Here are our active promo codes 🏷️: SAVE10 (10% off), MARKET20 (20% off), FIRST50 (50% off your first order), FASHION30 (30% off fashion), BEAUTY15 (15% off beauty)!"
+        elif any(w in ml for w in ["pay", "payment", "upi", "gpay", "paytm", "card", "credit", "debit"]):
+            reply = "We accept UPI (GPay, PhonePe, Paytm, BHIM, Amazon Pay) and Credit/Debit Cards. 💳 All payments are 100% secure!"
+        elif any(w in ml for w in ["gst", "tax", "price"]):
+            reply = "All our prices include 9% GST. The final price you see is exactly what you pay — no hidden charges! ✅"
+        elif any(w in ml for w in ["hello", "hi", "hey", "namaste", "good"]):
+            reply = "Hello! 👋 I'm Nexa, your Nexacart AI shopping assistant. I can help you find products, track orders, apply promo codes, and more! What are you looking for today?"
+        elif any(w in ml for w in ["laptop", "computer", "macbook", "dell", "hp"]):
+            reply = "We have a great range of laptops in the 'Laptops & Computers' category! 💻 From budget picks like HP Pavilion to premium options like MacBook Pro M3. Use promo code SAVE10 for 10% off!"
+        elif any(w in ml for w in ["phone", "mobile", "iphone", "samsung", "oneplus"]):
+            reply = "Check out our Smartphones category for the latest models! 📱 We have iPhone 15 Pro, Samsung Galaxy S24, OnePlus 12 and many more. Use SAVE10 for a discount!"
+        elif any(w in ml for w in ["earphone", "headphone", "earbud", "speaker", "audio"]):
+            reply = "Browse our Audio category for top headphones and speakers! 🎧 Sony WH-1000XM5, AirPods Pro, JBL Flip 6 — all available with free delivery."
+        elif any(w in ml for w in ["fashion", "clothes", "shirt", "dress", "shoes"]):
+            reply = "Explore our Fashion & Footwear collections! 👗👟 Use code FASHION30 for 30% off on clothing items. We have brands like Levi's, Nike, Adidas and more."
+        elif any(w in ml for w in ["beauty", "skincare", "makeup", "skin"]):
+            reply = "Discover our Beauty & Skincare collection! 💄 Brands like Mamaearth, Lakme, The Ordinary and more. Use BEAUTY15 for 15% off beauty products!"
+        elif any(w in ml for w in ["help", "support", "problem", "issue"]):
+            reply = "I'm here to help! 🤝 You can also visit our Help Centre for FAQs. What specific issue are you facing? I'll do my best to resolve it!"
+        elif any(w in ml for w in ["cancel", "cancellation"]):
+            reply = "Orders can be cancelled before they are shipped. 📦 Go to your Orders page and click 'Cancel' if the option is available. For shipped orders, use our 30-day return policy."
+        elif any(w in ml for w in ["contact", "email", "phone number"]):
+            reply = "You can reach our support team through the Help page. 📧 We typically respond within 24 hours. Is there something specific I can help you with right now?"
+        else:
+            reply = "I can help with finding products, delivery info, returns, payments, and promo codes! 🛍️ What are you looking for today?"
+        return jsonify({"reply": reply})
+
+    # Call Anthropic API
     try:
-        payload=_json.dumps({"model":"claude-haiku-4-5-20251001","max_tokens":200,"system":system_prompt,"messages":messages}).encode()
-        req=urllib.request.Request("https://api.anthropic.com/v1/messages",data=payload,
-            headers={"Content-Type":"application/json","x-api-key":api_key,"anthropic-version":"2023-06-01"},method="POST")
-        with urllib.request.urlopen(req,timeout=12) as resp:
-            result=_json.loads(resp.read())
-        reply=result["content"][0]["text"]
-    except Exception: reply="Sorry, having a brief issue! Try again shortly."
-    return jsonify({"reply":reply})
+        payload = _json.dumps({
+            "model": "claude-haiku-4-5-20251001",
+            "max_tokens": 300,
+            "system": system_prompt,
+            "messages": messages
+        }).encode("utf-8")
+
+        req = urllib.request.Request(
+            "https://api.anthropic.com/v1/messages",
+            data=payload,
+            headers={
+                "Content-Type": "application/json",
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01"
+            },
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            result = _json.loads(resp.read().decode("utf-8"))
+
+        # Extract text from content array
+        reply = ""
+        if result.get("content") and isinstance(result["content"], list):
+            for block in result["content"]:
+                if block.get("type") == "text":
+                    reply += block.get("text", "")
+        if not reply:
+            reply = "I'm here to help! What are you looking for today?"
+
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode("utf-8", errors="ignore")
+        app.logger.error(f"Anthropic API HTTP error {e.code}: {error_body}")
+        reply = "I'm having a brief moment! 😅 Please try again in a few seconds, or ask about delivery, returns, or promo codes."
+    except Exception as e:
+        app.logger.error(f"Chat API error: {e}")
+        reply = "Connection hiccup! 🔄 Please try again shortly. In the meantime — use SAVE10 for 10% off your order!"
+
+    return jsonify({"reply": reply})
 
 @app.route("/api/recommendations")
 @login_required
