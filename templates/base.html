@@ -24,7 +24,7 @@
 
   <!-- ═══════════════ SITE FOOTER ═══════════════ -->
   {% block footer %}
-  {% if session.get('user') %}
+  {% if session.get('user') and request.endpoint not in ['login','register','forgot_password','reset_password'] %}
   <footer class="site-footer" style="margin-bottom:60px">
     <div class="footer-top">
       <div class="footer-inner">

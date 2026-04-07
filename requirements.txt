@@ -4,3 +4,4 @@ pymongo[srv]==4.7.3
 dnspython==2.6.1
 Pillow==10.4.0
 gunicorn==22.0.0
+reportlab==4.2.5

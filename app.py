@@ -1819,6 +1819,204 @@ def admin_update_order(oid):
     col("orders").update_one({"seq_id":oid},{"$set":{"status":new_status}})
     return redirect(url_for("admin_orders"))
 
+
+@app.route("/admin/orders/label/<int:oid>")
+@admin_required
+def admin_order_label(oid):
+    """Generate a printable delivery label PDF for an order."""
+    from flask import make_response
+    import io
+
+    # Fetch order with full user details
+    order = col("orders").find_one({"seq_id": oid})
+    if not order:
+        return "Order not found", 404
+
+    # Fetch order items
+    items = list(col("order_items").find({"order_id": oid}))
+
+    # Fetch user details
+    user = col("users").find_one({"seq_id": order.get("user_id")})
+
+    # Build delivery info
+    recipient_name = (user.get("username", "Customer") if user else "Customer").title()
+    email = user.get("email", "") if user else ""
+    phone = user.get("phone", "") if user else ""
+    address = order.get("address") or (user.get("address", "") if user else "")
+    city = order.get("city") or (user.get("city", "") if user else "")
+    pincode = order.get("pincode") or (user.get("pincode", "") if user else "")
+    full_address = ", ".join(filter(None, [address, city, pincode])) or "Address not provided"
+
+    order_ref = order.get("order_ref", f"NXC-{oid}")
+    order_date = order.get("created_at", "")
+    if hasattr(order_date, "strftime"):
+        order_date_str = order_date.strftime("%d %b %Y, %I:%M %p")
+    else:
+        order_date_str = str(order_date)[:19]
+
+    status = order.get("status", "Confirmed")
+    total = order.get("total", 0)
+    payment_method = order.get("payment_method", "Online")
+    promo = order.get("promo_code", "") or ""
+
+    # Try to generate PDF with reportlab
+    try:
+        from reportlab.lib.pagesizes import A6
+        from reportlab.lib import colors
+        from reportlab.lib.units import mm
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+
+        buf = io.BytesIO()
+        doc = SimpleDocTemplate(buf, pagesize=A6,
+                                leftMargin=8*mm, rightMargin=8*mm,
+                                topMargin=8*mm, bottomMargin=8*mm)
+
+        styles = getSampleStyleSheet()
+        forest = colors.HexColor("#2d5016")
+        gold   = colors.HexColor("#b8882a")
+        light  = colors.HexColor("#f5f0e8")
+        muted  = colors.HexColor("#6b7280")
+
+        title_style  = ParagraphStyle("title",  fontSize=14, fontName="Helvetica-Bold",
+                                       textColor=colors.white, alignment=TA_CENTER, spaceAfter=2)
+        sub_style    = ParagraphStyle("sub",    fontSize=7,  fontName="Helvetica",
+                                       textColor=colors.white, alignment=TA_CENTER, spaceAfter=4)
+        label_style  = ParagraphStyle("label",  fontSize=6,  fontName="Helvetica-Bold",
+                                       textColor=muted, spaceBefore=4, spaceAfter=1)
+        value_style  = ParagraphStyle("value",  fontSize=8,  fontName="Helvetica",
+                                       textColor=colors.black, spaceAfter=2)
+        bold_style   = ParagraphStyle("bold",   fontSize=9,  fontName="Helvetica-Bold",
+                                       textColor=colors.black, spaceAfter=2)
+        center_style = ParagraphStyle("center", fontSize=7,  fontName="Helvetica",
+                                       textColor=muted, alignment=TA_CENTER)
+        ref_style    = ParagraphStyle("ref",    fontSize=11, fontName="Helvetica-Bold",
+                                       textColor=forest, alignment=TA_CENTER, spaceAfter=2)
+
+        story = []
+
+        # ── Header banner ──
+        header_data = [[Paragraph("📦 NEXACART", title_style)],
+                       [Paragraph("DELIVERY LABEL", sub_style)]]
+        header_tbl = Table(header_data, colWidths=[doc.width])
+        header_tbl.setStyle(TableStyle([
+            ("BACKGROUND", (0,0), (-1,-1), forest),
+            ("ROUNDEDCORNERS", [4]),
+            ("TOPPADDING",    (0,0), (-1,-1), 6),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 6),
+        ]))
+        story.append(header_tbl)
+        story.append(Spacer(1, 4*mm))
+
+        # ── Order ref ──
+        story.append(Paragraph(order_ref, ref_style))
+        story.append(HRFlowable(width="100%", thickness=1, color=gold, spaceAfter=4))
+
+        # ── Ship To ──
+        story.append(Paragraph("SHIP TO", label_style))
+        story.append(Paragraph(f"<b>{recipient_name}</b>", bold_style))
+        if phone: story.append(Paragraph(phone, value_style))
+        if email: story.append(Paragraph(email, value_style))
+        story.append(Paragraph(full_address, value_style))
+        story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#e5e7eb"), spaceAfter=3))
+
+        # ── Order Details ──
+        story.append(Paragraph("ORDER DETAILS", label_style))
+        details = [
+            ["Date:", order_date_str],
+            ["Status:", status],
+            ["Payment:", payment_method],
+            ["Total:", f"₹{total:,.0f}" + (f"  (Promo: {promo})" if promo else "")],
+        ]
+        det_tbl = Table(details, colWidths=[20*mm, doc.width - 20*mm])
+        det_tbl.setStyle(TableStyle([
+            ("FONTNAME",  (0,0), (0,-1), "Helvetica-Bold"),
+            ("FONTNAME",  (1,0), (1,-1), "Helvetica"),
+            ("FONTSIZE",  (0,0), (-1,-1), 7),
+            ("TEXTCOLOR", (0,0), (0,-1), muted),
+            ("TOPPADDING",    (0,0), (-1,-1), 1.5),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 1.5),
+        ]))
+        story.append(det_tbl)
+        story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#e5e7eb"), spaceAfter=3))
+
+        # ── Items ──
+        story.append(Paragraph("ITEMS", label_style))
+        for item in items[:6]:
+            qty = item.get("quantity", 1)
+            name = item.get("name", "Product")[:40]
+            price = item.get("price", 0)
+            variant = item.get("variant", "")
+            item_text = f"{qty}× {name}" + (f" ({variant})" if variant else "") + f"  —  ₹{price*qty:,.0f}"
+            story.append(Paragraph(item_text, value_style))
+        if len(items) > 6:
+            story.append(Paragraph(f"... and {len(items)-6} more item(s)", center_style))
+
+        story.append(Spacer(1, 3*mm))
+        story.append(HRFlowable(width="100%", thickness=0.5, color=gold, spaceAfter=3))
+
+        # ── Footer ──
+        story.append(Paragraph("Thank you for shopping with Nexacart!", center_style))
+        story.append(Paragraph("Free Delivery · 30-Day Returns · 100% Secure", center_style))
+
+        doc.build(story)
+        buf.seek(0)
+        resp = make_response(buf.read())
+        resp.headers["Content-Type"] = "application/pdf"
+        resp.headers["Content-Disposition"] = f'attachment; filename="label_{order_ref}.pdf"'
+        return resp
+
+    except ImportError:
+        # Fallback: return printable HTML page if reportlab not installed
+        html = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Label {order_ref}</title>
+<style>
+  *{{box-sizing:border-box;margin:0;padding:0}}
+  body{{font-family:Arial,sans-serif;font-size:12px;padding:20px;max-width:400px}}
+  .header{{background:#2d5016;color:#fff;padding:12px;text-align:center;border-radius:6px;margin-bottom:12px}}
+  .header h1{{font-size:16px;margin-bottom:2px}}
+  .header p{{font-size:10px;opacity:.8}}
+  .ref{{font-size:15px;font-weight:bold;color:#2d5016;text-align:center;padding:8px 0;border-bottom:2px solid #b8882a;margin-bottom:10px}}
+  .section-label{{font-size:9px;font-weight:bold;color:#6b7280;letter-spacing:.08em;text-transform:uppercase;margin:8px 0 4px}}
+  .value{{font-size:12px;margin-bottom:2px}}
+  .name{{font-size:14px;font-weight:bold;margin-bottom:3px}}
+  .row{{display:flex;gap:8px;margin-bottom:2px}}
+  .row .lbl{{color:#6b7280;min-width:70px;font-size:10px;font-weight:bold}}
+  .row .val{{font-size:10px}}
+  .item{{padding:2px 0;border-bottom:1px solid #f0f0f0;font-size:10px}}
+  .footer{{margin-top:12px;text-align:center;font-size:9px;color:#6b7280;border-top:1px solid #b8882a;padding-top:8px}}
+  hr{{border:none;border-top:1px solid #e5e7eb;margin:8px 0}}
+  @media print{{body{{padding:0}}}}
+</style>
+</head>
+<body onload="window.print()">
+  <div class="header"><h1>📦 NEXACART</h1><p>DELIVERY LABEL</p></div>
+  <div class="ref">{order_ref}</div>
+  <div class="section-label">SHIP TO</div>
+  <div class="name">{recipient_name}</div>
+  {"<div class='value'>"+phone+"</div>" if phone else ""}
+  {"<div class='value'>"+email+"</div>" if email else ""}
+  <div class="value">{full_address}</div>
+  <hr>
+  <div class="section-label">ORDER DETAILS</div>
+  <div class="row"><span class="lbl">Date:</span><span class="val">{order_date_str}</span></div>
+  <div class="row"><span class="lbl">Status:</span><span class="val">{status}</span></div>
+  <div class="row"><span class="lbl">Payment:</span><span class="val">{payment_method}</span></div>
+  <div class="row"><span class="lbl">Total:</span><span class="val">₹{total:,.0f}{" (Promo: "+promo+")" if promo else ""}</span></div>
+  <hr>
+  <div class="section-label">ITEMS</div>
+  {"".join(f'<div class="item">{i.get("quantity",1)}× {i.get("name","Product")[:40]}{" ("+i.get("variant","")+")" if i.get("variant") else ""} — ₹{i.get("price",0)*i.get("quantity",1):,.0f}</div>' for i in items[:8])}
+  <div class="footer">Thank you for shopping with Nexacart!<br>Free Delivery · 30-Day Returns · 100% Secure</div>
+</body>
+</html>"""
+        resp = make_response(html)
+        resp.headers["Content-Type"] = "text/html"
+        return resp
+
 @app.route("/admin/users")
 @admin_required
 def admin_users():

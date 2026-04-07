@@ -20,13 +20,22 @@
       <td><span class="badge-status status-{{ o['status']|lower }}">{{ o['status'] }}</span></td>
       <td>{{ o['created_at'][:10] }}</td>
       <td>
-        <form method="post" action="{{ url_for('admin_update_order', oid=o['id']) }}" style="display:flex;gap:.3rem">
-          <select name="status" style="font-size:.75rem;padding:.25rem .4rem;border:1px solid #e5e7eb;border-radius:4px">
-            {% for s in ["Confirmed","Processing","Shipped","Delivered","Cancelled"] %}
-            <option {% if o['status']==s %}selected{% endif %}>{{ s }}</option>{% endfor %}
-          </select>
-          <button class="btn btn-primary btn-sm">Update</button>
-        </form>
+        <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">
+          <form method="post" action="{{ url_for('admin_update_order', oid=o['id']) }}" style="display:flex;gap:.3rem">
+            <select name="status" style="font-size:.75rem;padding:.25rem .4rem;border:1px solid #e5e7eb;border-radius:4px">
+              {% for s in ["Confirmed","Processing","Shipped","Delivered","Cancelled"] %}
+              <option {% if o['status']==s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+            </select>
+            <button class="btn btn-primary btn-sm">Update</button>
+          </form>
+          <a href="{{ url_for('admin_order_label', oid=o['id']) }}"
+             style="display:inline-flex;align-items:center;gap:.3rem;background:#1e40af;color:#fff;border:none;border-radius:5px;padding:.28rem .65rem;font-size:.72rem;font-weight:600;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background .15s"
+             onmouseover="this.style.background='#1d3a9b'" onmouseout="this.style.background='#1e40af'"
+             title="Download delivery label PDF">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Label
+          </a>
+        </div>
       </td>
     </tr>
     {% else %}<tr><td colspan="7" style="text-align:center;padding:2rem;color:#6b7280">No orders found</td></tr>
