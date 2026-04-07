@@ -24,7 +24,7 @@
 
   <!-- ═══════════════ SITE FOOTER ═══════════════ -->
   {% block footer %}
-  {% if session.get('user') and not session.get('is_admin') %}
+  {% if session.get('user') %}
   <footer class="site-footer" style="margin-bottom:60px">
     <div class="footer-top">
       <div class="footer-inner">

@@ -80,6 +80,8 @@ def server_error(e):
 # CONFIGURATION
 # ═══════════════════════════════════════════════════════════
 ADMIN_SECRET = os.environ.get("ADMIN_SECRET", "nexacart_admin_2025")
+SUPER_ADMIN_USERNAME = os.environ.get("SUPER_ADMIN_USERNAME", "admin")
+SUPER_ADMIN_PASSWORD = os.environ.get("SUPER_ADMIN_PASSWORD", "admin@9432")
 STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "pk_test_YOUR_PUBLISHABLE_KEY")
 STRIPE_SECRET_KEY      = os.environ.get("STRIPE_SECRET_KEY", "sk_test_YOUR_SECRET_KEY")
 
@@ -721,6 +723,9 @@ def login():
             session.clear()
             session["user"] = user["username"]
             session["role"] = user.get("role","customer")
+            # Grant super admin privileges if this is the super admin account
+            if user["username"] == SUPER_ADMIN_USERNAME:
+                session["is_super_admin"] = True
             uid = user.get("seq_id")
             if uid is None:
                 # Old user without seq_id — assign one
@@ -1532,8 +1537,12 @@ def serve_product_image(product_id, slot):
 @app.route("/admin/login", methods=["GET","POST"])
 def admin_login():
     if request.method=="POST":
+        username_input = request.form.get("username","").strip()
         if request.form.get("secret")==ADMIN_SECRET:
             session["is_admin"]=True
+            # Also check if the logging-in admin is the super admin
+            if username_input == SUPER_ADMIN_USERNAME:
+                session["is_super_admin"] = True
             return redirect(url_for("admin_dashboard"))
         return render_template("admin_login.html",error="Invalid admin password.")
     return render_template("admin_login.html",error=None)
@@ -1755,6 +1764,35 @@ def admin_delete_product(pid):
     return redirect(url_for("admin_products"))
 
 
+@app.route("/admin/users/delete/<int:uid>", methods=["POST"])
+@admin_required
+def admin_delete_user(uid):
+    """Delete a user — only super admin can do this."""
+    if not session.get("is_super_admin"):
+        return jsonify({"error": "Forbidden: Only super admin can delete users."}), 403
+    # Prevent super admin from deleting themselves
+    user = col("users").find_one({"seq_id": uid})
+    if not user:
+        return redirect(url_for("admin_users"))
+    if user.get("username") == SUPER_ADMIN_USERNAME:
+        return redirect(url_for("admin_users"))
+    # Delete all user data
+    col("cart").delete_many({"user_id": uid})
+    col("wishlist").delete_many({"user_id": uid})
+    col("recently_viewed").delete_many({"user_id": uid})
+    col("reviews").delete_many({"user_id": uid})
+    col("password_resets").delete_many({"user_id": uid})
+    # Delete profile picture from GridFS
+    try:
+        fs = get_fs()
+        for f in fs.find({"filename": f"profile_{uid}"}):
+            fs.delete(f._id)
+    except Exception:
+        pass
+    col("users").delete_one({"seq_id": uid})
+    app.logger.info(f"Super admin deleted user id={uid} ({user.get('username')})")
+    return redirect(url_for("admin_users"))
+
 @app.route("/admin/orders")
 @admin_required
 def admin_orders():
@@ -1798,7 +1836,8 @@ def admin_users():
     for u in users:
         if hasattr(u.get("joined",""),"strftime"):
             u["joined"]=u["joined"].strftime("%Y-%m-%d %H:%M")
-    return render_template("admin_users.html",users=users,pending_requests=[])
+    is_super_admin = session.get("is_super_admin", False)
+    return render_template("admin_users.html", users=users, pending_requests=[], is_super_admin=is_super_admin)
 
 # ═══════════════════════════════════════════════════════════
 # API ROUTES

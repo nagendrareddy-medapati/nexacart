@@ -20,9 +20,14 @@ button:hover{background:#4a7c2b}
   <p class="sub">Enter the admin password to continue.</p>
   {% if error %}<div class="err">{{ error }}</div>{% endif %}
   <form method="post">
+    <label>Username <span style="color:#9ca3af;font-weight:400;text-transform:none">(Super Admin only)</span></label>
+    <input type="text" name="username" placeholder="Enter username (optional)" autocomplete="username">
     <label>Admin Password</label>
     <input type="password" name="secret" placeholder="••••••••" required autofocus>
     <button type="submit">Enter Dashboard</button>
   </form>
+  <p style="font-size:.7rem;color:#9ca3af;text-align:center;margin-top:1rem">
+    Leave username blank for regular admin access.<br>Enter your username for Super Admin privileges.
+  </p>
 </div>
 </body></html>

@@ -3,6 +3,16 @@
 {% block page_title %}Users ({{ users|length }}){% endblock %}
 {% block content %}
 
+{% if is_super_admin %}
+<div style="display:inline-flex;align-items:center;gap:.5rem;background:#fef3c7;border:1px solid #f59e0b;color:#92400e;font-size:.75rem;font-weight:700;padding:.4rem 1rem;border-radius:8px;margin-bottom:1rem">
+  👑 You are logged in as <strong>Super Admin</strong> — you can delete users and admins
+</div>
+{% else %}
+<div style="display:inline-flex;align-items:center;gap:.5rem;background:#f0f4ff;border:1px solid #c7d2fe;color:#3730a3;font-size:.75rem;padding:.4rem 1rem;border-radius:8px;margin-bottom:1rem">
+  ℹ️ Only the <strong>Super Admin</strong> can delete users. You have view-only access to this table.
+</div>
+{% endif %}
+
 <!-- Users Table -->
 <div class="card">
   <div class="card-hdr" style="display:flex;align-items:center;justify-content:space-between">
@@ -25,12 +35,16 @@
       <th>Orders</th>
       <th>Total Spent</th>
       <th>Joined</th>
+      {% if is_super_admin %}<th>Action</th>{% endif %}
     </tr>
     {% for u in users %}
     <tr>
       <td style="color:#6b7280;font-size:.78rem">{{ u['id'] }}</td>
       <td>
         <strong>{{ u['username'] }}</strong>
+        {% if u['username'] == 'admin' %}
+          <span style="background:#fef3c7;color:#92400e;font-size:.62rem;font-weight:700;padding:.1rem .4rem;border-radius:10px;margin-left:.3rem">👑 SUPER</span>
+        {% endif %}
         {% if u['is_verified'] %}
         <span title="Verified" style="color:#22c55e;font-size:.8rem">✓</span>
         {% endif %}
@@ -60,9 +74,25 @@
       <td style="font-size:.75rem;color:#6b7280;white-space:nowrap">
         {{ u['joined'] or '—' }}
       </td>
+      {% if is_super_admin %}
+      <td>
+        {% if u['username'] != 'admin' %}
+        <form method="post" action="{{ url_for('admin_delete_user', uid=u['id']) }}"
+              onsubmit="return confirm('Delete {{ u['username'] }}? This removes their account, cart, wishlist, reviews and profile picture permanently.')">
+          <button type="submit"
+            style="background:#dc2626;color:#fff;border:none;border-radius:6px;padding:.3rem .75rem;font-size:.72rem;font-weight:600;cursor:pointer;transition:background .15s"
+            onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
+            🗑 Delete
+          </button>
+        </form>
+        {% else %}
+        <span style="font-size:.7rem;color:#9ca3af;font-style:italic">Protected</span>
+        {% endif %}
+      </td>
+      {% endif %}
     </tr>
     {% else %}
-    <tr><td colspan="9" style="text-align:center;padding:2.5rem;color:#6b7280">No users yet</td></tr>
+    <tr><td colspan="{{ 10 if is_super_admin else 9 }}" style="text-align:center;padding:2.5rem;color:#6b7280">No users yet</td></tr>
     {% endfor %}
   </table>
   </div>
