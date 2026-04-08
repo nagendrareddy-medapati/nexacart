@@ -945,7 +945,7 @@ def product_detail(pid):
     original_price = round(p["price"] / (1 - discount_pct/100))
     variants       = get_customization_options(p["category"], p["name"])
     features       = _get_product_features(p["category"], p["name"])
-    product_images = p.get("images") or get_product_images(pid)
+    product_images = get_product_images(pid)
 
     return render_template("product_detail.html",
         p=p, related=related, user_revs=user_revs, rating_dist=rating_dist,
@@ -1476,16 +1476,12 @@ def share_product(pid):
     if not p: return redirect(url_for("login"))
     p=doc_to_dict(p)
     product_url=url_for("product_detail",pid=pid,_external=True)
-    product_images=p.get("images") or get_product_images(pid)
+    product_images=get_product_images(pid)
     # Build absolute URL for the first image (used in OG meta tags)
     if product_images:
         first = product_images[0]
         if first.startswith("http"):
             share_img_url = first
-        elif first.startswith("product_") and "_slot_" in first:
-            parts = first.split("_")
-            share_img_url = url_for("serve_product_image",
-                product_id=int(parts[1]), slot=int(parts[-1]), _external=True)
         elif first.startswith("img/"):
             pts = first.split("/")
             share_img_url = url_for("serve_product_image",
@@ -1506,17 +1502,17 @@ def share_product(pid):
 @app.route("/img/<int:product_id>/<int:slot>")
 def serve_product_image(product_id, slot):
     """Serve a product image stored in MongoDB GridFS."""
-    from flask import send_file, Response
+    from flask import Response
     try:
         fs = get_fs()
         filename = f"product_{product_id}_slot_{slot}"
         f = fs.find_one({"filename": filename})
         if f:
-            buf = io.BytesIO(f.read())
-            buf.seek(0)
-            return send_file(buf, mimetype="image/jpeg",
-                             max_age=86400,   # cache 1 day
-                             etag=False)
+            data = f.read()
+            response = Response(data, mimetype="image/jpeg")
+            response.headers["Cache-Control"] = "public, max-age=86400"
+            response.headers["Content-Length"] = str(len(data))
+            return response
     except Exception as e:
         app.logger.error(f"GridFS serve error: {e}")
     # Fallback: local static file
@@ -1524,7 +1520,12 @@ def serve_product_image(product_id, slot):
     for ext in ("jpg","jpeg","png","webp"):
         path = os.path.join(local_folder, f"{slot}.{ext}")
         if os.path.exists(path):
-            return send_file(path, mimetype=f"image/{ext if ext!='jpg' else 'jpeg'}", max_age=86400)
+            with open(path, "rb") as fh:
+                data = fh.read()
+            return Response(data,
+                            mimetype=f"image/{'jpeg' if ext in ('jpg','jpeg') else ext}",
+                            headers={"Cache-Control": "public, max-age=86400",
+                                     "Content-Length": str(len(data))})
     # Final fallback: 1x1 transparent PNG
     import base64
     px = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=")
