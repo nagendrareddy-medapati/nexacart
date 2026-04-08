@@ -22,21 +22,23 @@ def inject_globals():
         try:
             if not path_or_key:
                 return _PLACEHOLDER   # no image uploaded — silent transparent placeholder
-            s = str(path_or_key)
+            s = str(path_or_key).strip()
             # Already a full URL (http/https)
             if s.startswith("http"):
                 return s
-            # Route path: "img/159/1"
-            if s.startswith("img/"):
-                parts = s.split("/")
+            # Route path: "img/159/1" OR "/img/159/1"
+            clean = s.lstrip("/")
+            if clean.startswith("img/"):
+                parts = clean.split("/")
                 if len(parts) == 3:
                     return url_for("serve_product_image",
                                    product_id=int(parts[1]), slot=int(parts[2]))
-            # GridFS key: "product_159_slot_1"
+            # GridFS key: "product_<id>_slot_<n>"
             if s.startswith("product_") and "_slot_" in s:
-                parts = s.split("_")  # ["product","159","slot","1"]
-                pid  = int(parts[1])
-                slot = int(parts[-1])
+                slot_part = s.split("_slot_")[-1]
+                id_part   = s.split("_slot_")[0].replace("product_", "")
+                pid  = int(id_part)
+                slot = int(slot_part)
                 return url_for("serve_product_image", product_id=pid, slot=slot)
             # Local static file fallback
             return url_for("static", filename=s)
@@ -175,18 +177,14 @@ def get_product_images(product_id):
         return []
     stored = [s for s in (p.get("images") or []) if s]
     if stored:
-        # Convert GridFS keys to URL routes
+        # Return keys as-is; img_url() in templates handles all formats
         urls = []
         for key in stored:
-            # key format: "product_<id>_slot_<n>"  or legacy http URL
-            if key.startswith("http"):
+            if key.startswith("http") or (key.startswith("product_") and "_slot_" in key):
                 urls.append(key)
             else:
-                try:
-                    slot = int(key.split("_slot_")[-1])
-                    urls.append(f"img/{pid}/{slot}")
-                except Exception:
-                    urls.append(f"img/{pid}/1")
+                # legacy or unknown — keep as-is
+                urls.append(key)
         return urls
     # Fallback: check local static folder
     folder = os.path.join(os.path.dirname(__file__), "static", "product_images", str(pid))
@@ -223,14 +221,8 @@ def batch_get_first_images(product_ids):
             stored = [s for s in (doc.get("images") or []) if s]
             if stored:
                 key = stored[0]
-                if key.startswith("http"):
-                    result[pid] = key
-                else:
-                    try:
-                        slot = int(key.split("_slot_")[-1])
-                        result[pid] = f"img/{pid}/{slot}"
-                    except Exception:
-                        result[pid] = f"img/{pid}/1"
+                # Return raw key; img_url() in templates handles all formats
+                result[pid] = key
             else:
                 result[pid] = None
     except Exception as e:
@@ -1179,6 +1171,12 @@ def home():
     uid     = get_user_id()
     season  = get_season()
     sc      = SEASON_CATS.get(season, [])
+    # Category filter / search params (used when user clicks a category pill)
+    active_cat = request.args.get("cat", "")
+    sort_f     = request.args.get("sort_f", "rating")
+    min_price  = request.args.get("min_price", "")
+    max_price  = request.args.get("max_price", "")
+    min_rating = request.args.get("min_rating", "")
     # Only load products that have a proper seq_id (excludes any old/corrupt data)
     trending = [doc_to_dict(p) for p in col("products").find({"trending":1,"seq_id":{"$exists":True}}).sort([("rating",-1),("reviews",-1)]).limit(12)]
     trending = [p for p in trending if p.get("id",0) > 0]
@@ -1198,15 +1196,45 @@ def home():
         pids = [r["product_id"] for r in rv_docs]
         rp = {p["seq_id"]:doc_to_dict(p) for p in col("products").find({"seq_id":{"$in":pids}})}
         recently = [rp[pid] for pid in pids if pid in rp]
+
+    # Build cat_products when a category pill is clicked
+    cat_products = []
+    if active_cat:
+        filt = {"seq_id": {"$exists": True}}
+        if active_cat != "All":
+            filt["category"] = active_cat
+        if min_price:
+            filt["price"] = {"$gte": float(min_price)}
+        if max_price:
+            filt.setdefault("price", {})["$lte"] = float(max_price)
+        if min_rating:
+            filt["rating"] = {"$gte": float(min_rating)}
+        sort_map = {
+            "rating":     [("rating", -1)],
+            "popular":    [("reviews", -1)],
+            "price_asc":  [("price", 1)],
+            "price_desc": [("price", -1)],
+            "name":       [("name", 1)],
+        }
+        sort_opts = sort_map.get(sort_f, [("rating", -1)])
+        cat_products = [doc_to_dict(p) for p in
+                        col("products").find(filt).sort(sort_opts).limit(48)]
+        cat_products = [p for p in cat_products if p.get("id", 0) > 0]
+
+    # Build image map — include ALL product lists so every card gets its image
+    all_for_imgs = trending + season_picks + deals + recently + cat_products
+    product_img_map = batch_get_first_images([p["id"] for p in all_for_imgs])
+
     return render_template("home.html",
         username=session["user"], cart_count=get_cart_count(uid),
         season=season, trending=trending, season_picks=season_picks,
         deals=deals, recently=recently, cat_counts=cat_counts,
         categories=list(CATEGORY_META.keys()), super_cats={},
         cat_meta=CATEGORY_META,
-        product_img_map=batch_get_first_images(
-            [p["id"] for p in trending + season_picks + deals + recently]
-        ))
+        active_cat=active_cat, cat_products=cat_products,
+        sort_f=sort_f, min_price=min_price, max_price=max_price,
+        min_rating=min_rating,
+        product_img_map=product_img_map)
 
 # ═══════════════════════════════════════════════════════════
 # PRODUCTS
