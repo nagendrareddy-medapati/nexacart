@@ -124,7 +124,7 @@
             {% if p['badge'] %}<div class="card-badge badge-{{ p['badge']|lower|replace(' ','') }}">{{ p['badge'] }}</div>{% endif %}
             <a href="{{ url_for('product_detail', pid=p['id']) }}" class="card-thumb-link">
               <div class="card-thumb">
-                <img src="{{ img_url(get_img(p['id'])) }}" alt="{{ p['name'] }}" loading="lazy">
+                <img src="{{ img_url(product_img_map.get(p["id"])) }}" alt="{{ p['name'] }}" loading="lazy">
               </div>
             </a>
             <div class="card-body">
@@ -151,7 +151,7 @@
             {% if p['badge'] %}<div class="card-badge badge-{{ p['badge']|lower|replace(' ','') }}">{{ p['badge'] }}</div>{% endif %}
             <a href="{{ url_for('product_detail', pid=p['id']) }}" class="card-thumb-link">
               <div class="card-thumb">
-                <img src="{{ img_url(get_img(p['id'])) }}" alt="{{ p['name'] }}" loading="lazy">
+                <img src="{{ img_url(product_img_map.get(p["id"])) }}" alt="{{ p['name'] }}" loading="lazy">
               </div>
             </a>
             <div class="card-body">

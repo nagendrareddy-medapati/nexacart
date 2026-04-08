@@ -206,6 +206,37 @@ def get_product_image(product_id, name="", category=""):
     except Exception:
         return None
 
+def batch_get_first_images(product_ids):
+    """Fetch first image URL for a list of product IDs in a single DB query.
+    Returns a dict {product_id: img_url_path_or_None}."""
+    result = {}
+    try:
+        pids = [int(p) for p in product_ids if p]
+        if not pids:
+            return result
+        docs = col("products").find(
+            {"seq_id": {"$in": pids}},
+            {"seq_id": 1, "images": 1}
+        )
+        for doc in docs:
+            pid = doc.get("seq_id")
+            stored = [s for s in (doc.get("images") or []) if s]
+            if stored:
+                key = stored[0]
+                if key.startswith("http"):
+                    result[pid] = key
+                else:
+                    try:
+                        slot = int(key.split("_slot_")[-1])
+                        result[pid] = f"img/{pid}/{slot}"
+                    except Exception:
+                        result[pid] = f"img/{pid}/1"
+            else:
+                result[pid] = None
+    except Exception as e:
+        app.logger.error(f"batch_get_first_images error: {e}")
+    return result
+
 # ═══════════════════════════════════════════════════════════
 # MONGODB DOCUMENT HELPERS
 # ═══════════════════════════════════════════════════════════
@@ -821,7 +852,10 @@ def home():
         season=season, trending=trending, season_picks=season_picks,
         deals=deals, recently=recently, cat_counts=cat_counts,
         categories=list(CATEGORY_META.keys()), super_cats={},
-        cat_meta=CATEGORY_META)
+        cat_meta=CATEGORY_META,
+        product_img_map=batch_get_first_images(
+            [p["id"] for p in trending + season_picks + deals + recently]
+        ))
 
 # ═══════════════════════════════════════════════════════════
 # PRODUCTS
@@ -881,7 +915,8 @@ def products():
         min_price=min_price, max_price=max_price, min_rating=min_rating,
         brands_sel=brands_sel, all_brands=[], price_range=price_range,
         wish_ids=wish_ids, username=session["user"], cart_count=get_cart_count(uid),
-        super_cats={}, cat_counts={}, showing_all=showing_all)
+        super_cats={}, cat_counts={}, showing_all=showing_all,
+        product_img_map=batch_get_first_images([p["id"] for p in product_list]))
 
 # ═══════════════════════════════════════════════════════════
 # PRODUCT DETAIL

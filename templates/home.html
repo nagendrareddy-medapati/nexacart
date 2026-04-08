@@ -148,7 +148,7 @@
     <div class="hero-cards">
       {% for p in trending[:8] %}
       <div class="hero-card hero-card-{{ ((loop.index0) % 4) + 1 }}">
-        {% set img = get_img(p['id']) %}
+        {% set img = product_img_map.get(p["id"]) %}
         {% if img %}
           <img src="{{ img_url(img) }}" alt="{{ p['name'] }}" class="hero-card-img">
         {% else %}
@@ -297,7 +297,7 @@
             {% if p['badge'] %}<div class="card-badge badge-{{ p['badge']|lower|replace(' ','') }}">{{ p['badge'] }}</div>{% endif %}
             <a href="{{ url_for('product_detail', pid=p['id']) }}" class="card-thumb-link">
               <div class="card-thumb">
-                <img src="{{ img_url(get_img(p['id'])) }}" alt="{{ p['name'] }}" loading="lazy">
+                <img src="{{ img_url(product_img_map.get(p["id"])) }}" alt="{{ p['name'] }}" loading="lazy">
               </div>
             </a>
             <div class="card-body">
@@ -612,7 +612,7 @@
       <div class="product-card">
         {% if p['badge'] %}<div class="card-badge badge-{{ p['badge']|lower|replace(' ','') }}">{{ p['badge'] }}</div>{% endif %}
         <a href="{{ url_for('product_detail', pid=p['id']) }}" class="card-thumb-link">
-          <div class="card-thumb"><img src="{{ img_url(get_img(p['id'])) }}" alt="{{ p['name'] }}" loading="lazy"></div>
+          <div class="card-thumb"><img src="{{ img_url(product_img_map.get(p["id"])) }}" alt="{{ p['name'] }}" loading="lazy"></div>
         </a>
         <div class="card-body">
           <div class="card-cat">{{ p['category'] }}</div>
@@ -652,7 +652,7 @@
       <div class="product-card">
         {% if p['badge'] %}<div class="card-badge badge-{{ p['badge']|lower|replace(' ','') }}">{{ p['badge'] }}</div>{% endif %}
         <a href="{{ url_for('product_detail', pid=p['id']) }}" class="card-thumb-link">
-          <div class="card-thumb"><img src="{{ img_url(get_img(p['id'])) }}" alt="{{ p['name'] }}" loading="lazy"></div>
+          <div class="card-thumb"><img src="{{ img_url(product_img_map.get(p["id"])) }}" alt="{{ p['name'] }}" loading="lazy"></div>
         </a>
         <div class="card-body">
           <div class="card-cat">{{ p['category'] }}</div>
@@ -691,7 +691,7 @@
       <div class="product-card deal-card">
         {% if p['badge'] %}<div class="card-badge badge-{{ p['badge']|lower|replace(' ','') }}">{{ p['badge'] }}</div>{% endif %}
         <a href="{{ url_for('product_detail', pid=p['id']) }}" class="card-thumb-link">
-          <div class="card-thumb"><img src="{{ img_url(get_img(p['id'])) }}" alt="{{ p['name'] }}" loading="lazy"></div>
+          <div class="card-thumb"><img src="{{ img_url(product_img_map.get(p["id"])) }}" alt="{{ p['name'] }}" loading="lazy"></div>
         </a>
         <div class="card-body">
           <div class="card-cat">{{ p['category'] }}</div>
@@ -747,7 +747,7 @@
       <div class="product-card">
         {% if p['badge'] %}<div class="card-badge badge-{{ p['badge']|lower|replace(' ','') }}">{{ p['badge'] }}</div>{% endif %}
         <a href="{{ url_for('product_detail', pid=p['id']) }}" class="card-thumb-link">
-          <div class="card-thumb"><img src="{{ img_url(get_img(p['id'])) }}" alt="{{ p['name'] }}" loading="lazy"></div>
+          <div class="card-thumb"><img src="{{ img_url(product_img_map.get(p["id"])) }}" alt="{{ p['name'] }}" loading="lazy"></div>
         </a>
         <div class="card-body">
           <div class="card-cat">{{ p['category'] }}</div>
