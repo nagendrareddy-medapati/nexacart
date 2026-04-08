@@ -1439,9 +1439,7 @@ a{text-decoration:none}
   ::-webkit-scrollbar-thumb:hover{background:#9ca3af}
 }
 
-/* Image lazy load fade */
-img{transition:opacity .3s ease}
-img[loading="lazy"]{opacity:0}
+/* Image lazy load fade - opacity:0 removed; JS adds .loaded class */
 img[loading="lazy"].loaded{opacity:1}
 
 /* Pulse animation for skeleton loading */

@@ -168,7 +168,27 @@
   </nav>
   {% endif %}
 
-  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='js/main.js') }}">
+  <script>
+  /* Fix lazy-load image visibility: add .loaded when image finishes loading */
+  (function() {
+    function initLazyImages() {
+      document.querySelectorAll('img[loading="lazy"]').forEach(function(img) {
+        if (img.complete && img.naturalWidth > 0) {
+          img.classList.add('loaded');
+        } else {
+          img.addEventListener('load', function() { img.classList.add('loaded'); });
+          img.addEventListener('error', function() { img.classList.add('loaded'); });
+        }
+      });
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initLazyImages);
+    } else {
+      initLazyImages();
+    }
+  })();
+  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>
