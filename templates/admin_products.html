@@ -2,15 +2,90 @@
 {% block title %}Products — Nexacart Admin{% endblock %}
 {% block page_title %}Products ({{ total }}){% endblock %}
 {% block content %}
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;flex-wrap:wrap;gap:.7rem">
-  <form class="search-bar" method="get" style="margin:0;flex:1;min-width:220px;max-width:400px">
-    <input name="q" value="{{ q }}" placeholder="Search products…">
+
+<!-- ── Top bar: search + Add button ── -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.7rem">
+  <form class="search-bar" method="get" style="margin:0;flex:1;min-width:220px;max-width:420px">
+    <input type="hidden" name="cat"   value="{{ cat_filter }}">
+    <input type="hidden" name="badge" value="{{ badge_filter }}">
+    <input type="hidden" name="sort"  value="{{ sort_by }}">
+    <input type="hidden" name="stock" value="{{ stock_filter }}">
+    <input name="q" value="{{ q }}" placeholder="Search by name or category…">
     <button type="submit" class="btn btn-primary btn-sm">Search</button>
-    {% if q %}<a href="{{ url_for('admin_products') }}" class="btn btn-outline btn-sm">Clear</a>{% endif %}
+    {% if q or cat_filter or badge_filter or stock_filter %}
+      <a href="{{ url_for('admin_products') }}" class="btn btn-outline btn-sm">✕ Clear all</a>
+    {% endif %}
   </form>
   <a href="{{ url_for('admin_add_product') }}" class="btn btn-primary">➕ Add Product</a>
 </div>
 
+<!-- ── Filter bar ── -->
+<div class="ap-filter-bar">
+  <div class="ap-filter-group">
+    <label class="ap-filter-label">Category</label>
+    <select class="ap-filter-select" onchange="applyFilter('cat', this.value)">
+      <option value="">All Categories</option>
+      {% for c in all_cats %}
+        <option value="{{ c }}" {% if cat_filter == c %}selected{% endif %}>{{ c }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="ap-filter-group">
+    <label class="ap-filter-label">Badge</label>
+    <select class="ap-filter-select" onchange="applyFilter('badge', this.value)">
+      <option value="">All Badges</option>
+      <option value="none" {% if badge_filter == 'none' %}selected{% endif %}>— No Badge</option>
+      {% for b in all_badges %}
+        <option value="{{ b }}" {% if badge_filter == b %}selected{% endif %}>{{ b }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="ap-filter-group">
+    <label class="ap-filter-label">Stock Level</label>
+    <select class="ap-filter-select" onchange="applyFilter('stock', this.value)">
+      <option value="">All Stock</option>
+      <option value="low"    {% if stock_filter == 'low'    %}selected{% endif %}>🔴 Low (&lt;10)</option>
+      <option value="medium" {% if stock_filter == 'medium' %}selected{% endif %}>🟡 Medium (10–29)</option>
+      <option value="ok"     {% if stock_filter == 'ok'     %}selected{% endif %}>🟢 OK (30+)</option>
+    </select>
+  </div>
+
+  <div class="ap-filter-group">
+    <label class="ap-filter-label">Sort By</label>
+    <select class="ap-filter-select" onchange="applyFilter('sort', this.value)">
+      <option value="cat_name"   {% if sort_by == 'cat_name'   %}selected{% endif %}>Category → Name</option>
+      <option value="name"       {% if sort_by == 'name'       %}selected{% endif %}>Name A–Z</option>
+      <option value="newest"     {% if sort_by == 'newest'     %}selected{% endif %}>Newest First</option>
+      <option value="price_asc"  {% if sort_by == 'price_asc'  %}selected{% endif %}>Price: Low → High</option>
+      <option value="price_desc" {% if sort_by == 'price_desc' %}selected{% endif %}>Price: High → Low</option>
+      <option value="rating"     {% if sort_by == 'rating'     %}selected{% endif %}>Top Rated</option>
+      <option value="stock_asc"  {% if sort_by == 'stock_asc'  %}selected{% endif %}>Stock: Low first</option>
+    </select>
+  </div>
+
+  {% if cat_filter or badge_filter or stock_filter %}
+  <div class="ap-active-chips">
+    {% if cat_filter %}
+      <span class="ap-chip">📂 {{ cat_filter }} <a href="javascript:applyFilter('cat','')">✕</a></span>
+    {% endif %}
+    {% if badge_filter %}
+      <span class="ap-chip">🏷 {{ 'No Badge' if badge_filter == 'none' else badge_filter }} <a href="javascript:applyFilter('badge','')">✕</a></span>
+    {% endif %}
+    {% if stock_filter %}
+      <span class="ap-chip">📦 Stock: {{ stock_filter }} <a href="javascript:applyFilter('stock','')">✕</a></span>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<div style="font-size:.78rem;color:#6b7280;margin-bottom:.6rem">
+  Showing {{ products|length }} of {{ total }} product{{ 's' if total != 1 }}
+  {% if q %} for "<strong>{{ q }}</strong>"{% endif %}
+</div>
+
+<!-- ── Product table ── -->
 <div class="card">
   <div style="overflow-x:auto">
   <table>
@@ -25,32 +100,28 @@
     </tr>
     {% for p in products %}
     <tr>
-      <!-- Image: uses img_url() which handles all GridFS key formats -->
       <td>
         {% set imgs = p.get('images') or [] %}
         {% if imgs and imgs[0] %}
           <img src="{{ img_url(imgs[0]) }}"
-               class="product-thumb"
-               alt="{{ p.name }}"
+               class="product-thumb" alt="{{ p.name }}"
                onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
           <div class="product-thumb-fallback" style="display:none">{{ p.get('icon','📦') }}</div>
         {% else %}
           <div class="product-thumb-fallback">{{ p.get('icon','📦') }}</div>
         {% endif %}
       </td>
-
       <td>
         <strong>{{ p.name[:45] }}</strong>
         {% if p.badge %}
-        <br><span style="font-size:.63rem;color:#6b7280;background:#f3f4f6;padding:.1rem .4rem;border-radius:3px">{{ p.badge }}</span>
+        <br><span class="ap-badge-tag ap-badge-{{ p.badge|lower|replace(' ','-') }}">{{ p.badge }}</span>
         {% endif %}
       </td>
-      <td style="font-size:.78rem;color:#6b7280">{{ p.category }}</td>
-      <td style="font-weight:600">₹{{ "{:,.0f}".format(p.price) }}</td>
       <td>
-        <span style="color:#f59e0b">★</span>
-        {{ p.rating }}
+        <a href="javascript:applyFilter('cat','{{ p.category }}')" class="ap-cat-link">{{ p.category }}</a>
       </td>
+      <td style="font-weight:600">₹{{ "{:,.0f}".format(p.price) }}</td>
+      <td><span style="color:#f59e0b">★</span> {{ p.rating }}</td>
       <td>
         <span style="color:{% if (p.stock or 100) < 10 %}#dc2626{% elif (p.stock or 100) < 30 %}#f59e0b{% else %}#15803d{% endif %};font-weight:600">
           {{ p.stock or 100 }}
@@ -67,7 +138,12 @@
     </tr>
     {% else %}
     <tr><td colspan="7" style="text-align:center;padding:2.5rem;color:#9ca3af">
-      {% if q %}No products matching "{{ q }}"{% else %}No products yet. <a href="{{ url_for('admin_add_product') }}">Add one →</a>{% endif %}
+      {% if q or cat_filter or badge_filter or stock_filter %}
+        No products match the current filters.
+        <a href="{{ url_for('admin_products') }}">Clear all filters →</a>
+      {% else %}
+        No products yet. <a href="{{ url_for('admin_add_product') }}">Add one →</a>
+      {% endif %}
     </td></tr>
     {% endfor %}
   </table>
@@ -76,14 +152,14 @@
   {% if total_pages > 1 %}
   <div class="pagination">
     {% if page > 1 %}
-    <a href="{{ url_for('admin_products', page=page-1, q=q) }}" class="page-btn">‹</a>
+    <a href="{{ url_for('admin_products', page=page-1, q=q, cat=cat_filter, badge=badge_filter, sort=sort_by, stock=stock_filter) }}" class="page-btn">‹</a>
     {% endif %}
     {% for i in range([1,page-2]|max, [total_pages+1,page+3]|min) %}
-    <a href="{{ url_for('admin_products', page=i, q=q) }}"
+    <a href="{{ url_for('admin_products', page=i, q=q, cat=cat_filter, badge=badge_filter, sort=sort_by, stock=stock_filter) }}"
        class="page-btn {% if i==page %}active{% endif %}">{{ i }}</a>
     {% endfor %}
     {% if page < total_pages %}
-    <a href="{{ url_for('admin_products', page=page+1, q=q) }}" class="page-btn">›</a>
+    <a href="{{ url_for('admin_products', page=page+1, q=q, cat=cat_filter, badge=badge_filter, sort=sort_by, stock=stock_filter) }}" class="page-btn">›</a>
     {% endif %}
     <span style="font-size:.72rem;color:#6b7280;margin-left:.5rem">{{ total }} products</span>
   </div>
@@ -91,15 +167,42 @@
 </div>
 
 <style>
+.ap-filter-bar{display:flex;flex-wrap:wrap;align-items:flex-end;gap:.75rem;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:.85rem 1rem;margin-bottom:1rem}
+.ap-filter-group{display:flex;flex-direction:column;gap:.25rem;min-width:148px}
+.ap-filter-label{font-size:.67rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.07em}
+.ap-filter-select{padding:.38rem .65rem;border:1px solid #d1d5db;border-radius:7px;font-size:.82rem;color:#1c1c18;background:#fff;cursor:pointer;transition:border-color .18s,box-shadow .18s;outline:none}
+.ap-filter-select:focus{border-color:#2d5016;box-shadow:0 0 0 2px rgba(45,80,22,.12)}
+.ap-filter-select:hover{border-color:#9ca3af}
+.ap-active-chips{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;padding-top:.1rem}
+.ap-chip{display:inline-flex;align-items:center;gap:.3rem;background:#e8f0e2;color:#2d5016;font-size:.72rem;font-weight:600;padding:.22rem .6rem;border-radius:20px;border:1px solid #c3d9b5}
+.ap-chip a{color:#2d5016;text-decoration:none;opacity:.65;font-weight:700}
+.ap-chip a:hover{opacity:1}
+.ap-cat-link{color:#6b7280;font-size:.78rem;text-decoration:none;transition:color .15s}
+.ap-cat-link:hover{color:#2d5016;text-decoration:underline}
+.ap-badge-tag{font-size:.62rem;padding:.1rem .42rem;border-radius:3px;font-weight:600}
+.ap-badge-best-seller{background:#fef3c7;color:#92400e}
+.ap-badge-premium{background:#ede9fe;color:#5b21b6}
+.ap-badge-budget-pick{background:#dcfce7;color:#166534}
+.ap-badge-new-arrival{background:#dbeafe;color:#1e40af}
+.ap-badge-limited{background:#fee2e2;color:#991b1b}
+.ap-badge-trending{background:#ffedd5;color:#9a3412}
 .product-thumb{width:52px;height:52px;object-fit:contain;border-radius:6px;border:1px solid var(--border);background:#f9fafb;padding:3px}
 .product-thumb-fallback{width:52px;height:52px;border-radius:6px;border:1px solid var(--border);background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:1.6rem}
 @media(max-width:768px){
-  table th:nth-child(3),table td:nth-child(3),
-  table th:nth-child(5),table td:nth-child(5){display:none}
+  table th:nth-child(3),table td:nth-child(3),table th:nth-child(5),table td:nth-child(5){display:none}
+  .ap-filter-group{min-width:calc(50% - .5rem)}
 }
 @media(max-width:560px){
-  table th:nth-child(4),table td:nth-child(4),
-  table th:nth-child(6),table td:nth-child(6){display:none}
+  table th:nth-child(4),table td:nth-child(4),table th:nth-child(6),table td:nth-child(6){display:none}
 }
 </style>
+
+<script>
+function applyFilter(param, value) {
+  const url = new URL(window.location.href);
+  url.searchParams.set(param, value);
+  url.searchParams.set('page', '1');
+  window.location.href = url.toString();
+}
+</script>
 {% endblock %}

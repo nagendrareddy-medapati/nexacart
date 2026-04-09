@@ -2053,13 +2053,56 @@ def admin_dashboard():
 @app.route("/admin/products")
 @admin_required
 def admin_products():
-    q=request.args.get("q",""); page=max(1,int(request.args.get("page",1)))
-    filt={"name":{"$regex":q,"$options":"i"}} if q else {}
-    total=col("products").count_documents(filt)
-    items=[doc_to_dict(p) for p in col("products").find(filt).sort([("category",1),("name",1)]).skip((page-1)*30).limit(30)]
-    total_pages=max(1,(total+29)//30)
-    return render_template("admin_products.html",products=items,q=q,
-        page=page,total_pages=total_pages,total=total,get_img=get_product_image)
+    q            = request.args.get("q", "").strip()
+    cat_filter   = request.args.get("cat", "").strip()
+    badge_filter = request.args.get("badge", "").strip()
+    sort_by      = request.args.get("sort", "cat_name")
+    stock_filter = request.args.get("stock", "").strip()
+    page         = max(1, int(request.args.get("page", 1)))
+
+    filt = {}
+    if q:
+        filt["$or"] = [
+            {"name":     {"$regex": q, "$options": "i"}},
+            {"category": {"$regex": q, "$options": "i"}},
+        ]
+    if cat_filter:
+        filt["category"] = cat_filter
+    if badge_filter == "none":
+        filt["badge"] = None
+    elif badge_filter:
+        filt["badge"] = badge_filter
+    if stock_filter == "low":
+        filt["stock"] = {"$lt": 10}
+    elif stock_filter == "medium":
+        filt["stock"] = {"$gte": 10, "$lt": 30}
+    elif stock_filter == "ok":
+        filt["stock"] = {"$gte": 30}
+
+    sort_map = {
+        "cat_name":   [("category", 1), ("name", 1)],
+        "name":       [("name", 1)],
+        "price_asc":  [("price", 1)],
+        "price_desc": [("price", -1)],
+        "rating":     [("rating", -1)],
+        "stock_asc":  [("stock", 1)],
+        "newest":     [("seq_id", -1)],
+    }
+    sort_opts = sort_map.get(sort_by, [("category", 1), ("name", 1)])
+
+    total       = col("products").count_documents(filt)
+    items       = [doc_to_dict(p) for p in col("products").find(filt).sort(sort_opts).skip((page-1)*30).limit(30)]
+    total_pages = max(1, (total + 29) // 30)
+
+    all_cats   = sorted(CATEGORY_META.keys())
+    all_badges = ["Best Seller", "Premium", "Budget Pick", "New Arrival", "Limited", "Trending"]
+
+    return render_template("admin_products.html", products=items, q=q,
+        cat_filter=cat_filter, badge_filter=badge_filter,
+        sort_by=sort_by, stock_filter=stock_filter,
+        page=page, total_pages=total_pages, total=total,
+        all_cats=all_cats, all_badges=all_badges,
+        get_img=get_product_image)
 
 @app.route("/admin/products/edit/<int:pid>", methods=["GET","POST"])
 @admin_required
