@@ -25,7 +25,7 @@
   <!-- ═══════════════ SITE FOOTER ═══════════════ -->
   {% block footer %}
   {% if session.get('user') and request.endpoint not in ['login','register','forgot_password','reset_password'] %}
-  <footer class="site-footer" style="margin-bottom:60px">
+  <footer class="site-footer">
     <div class="footer-top">
       <div class="footer-inner">
         <div class="footer-col">
@@ -168,7 +168,7 @@
   </nav>
   {% endif %}
 
-  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='js/main.js') }}">
   <script>
   /* Fix lazy-load image visibility: add .loaded when image finishes loading */
   (function() {
