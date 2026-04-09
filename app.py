@@ -247,14 +247,37 @@ def doc_to_dict(doc):
     return d
 
 def next_seq(name):
-    """Auto-increment counter stored in MongoDB (replaces AUTOINCREMENT)."""
-    result = get_db().counters.find_one_and_update(
-        {"_id": name},
-        {"$inc": {"seq": 1}},
-        upsert=True,
-        return_document=pymongo.ReturnDocument.AFTER
-    )
-    return result["seq"]
+    """Auto-increment counter stored in MongoDB.
+    Self-heals if the counter falls behind the actual max seq_id in the collection."""
+    for attempt in range(3):
+        result = get_db().counters.find_one_and_update(
+            {"_id": name},
+            {"$inc": {"seq": 1}},
+            upsert=True,
+            return_document=pymongo.ReturnDocument.AFTER
+        )
+        candidate = result["seq"]
+        # Check for duplicate by looking at the actual collection max
+        # Map counter name to collection name
+        coll_name = {"products": "products", "users": "users",
+                     "cart": "cart", "orders": "orders"}.get(name, name)
+        try:
+            coll = get_db()[coll_name]
+            agg = list(coll.aggregate([{"$group": {"_id": None, "max": {"$max": "$seq_id"}}}]))
+            actual_max = agg[0]["max"] if agg else 0
+            if actual_max is not None and actual_max >= candidate:
+                # Counter is behind — jump it ahead
+                safe_val = actual_max + 1
+                get_db().counters.update_one(
+                    {"_id": name},
+                    {"$set": {"seq": safe_val}},
+                    upsert=True
+                )
+                candidate = safe_val
+        except Exception:
+            pass
+        return candidate
+    raise RuntimeError(f"next_seq({name}): could not get a unique id after 3 attempts")
 
 # ═══════════════════════════════════════════════════════════
 # DB INIT — create indexes and seed products
@@ -295,6 +318,23 @@ def init_db():
     # ── Auto-assign seq_id to users that are missing it ──
     for u in list(db.users.find({"seq_id":{"$exists":False}})):
         db.users.update_one({"_id":u["_id"]},{"$set":{"seq_id":next_seq("users")}})
+
+    # ── Sync counters to actual max seq_id in each collection (prevents DuplicateKeyError) ──
+    for coll_name in ("products", "users"):
+        try:
+            agg = list(db[coll_name].aggregate([{"$group": {"_id": None, "max": {"$max": "$seq_id"}}}]))
+            actual_max = int(agg[0]["max"]) if agg and agg[0]["max"] is not None else 0
+            current = db.counters.find_one({"_id": coll_name})
+            current_val = int(current["seq"]) if current else 0
+            if actual_max > current_val:
+                db.counters.update_one(
+                    {"_id": coll_name},
+                    {"$set": {"seq": actual_max}},
+                    upsert=True
+                )
+                app.logger.info(f"Counter sync: {coll_name} counter fixed {current_val} -> {actual_max}")
+        except Exception as e:
+            app.logger.warning(f"Counter sync failed for {coll_name}: {e}")
 
     # ── Patch existing products that have empty images with seed URLs ──
     _SEED_IMG_PATCH = {
@@ -2053,56 +2093,13 @@ def admin_dashboard():
 @app.route("/admin/products")
 @admin_required
 def admin_products():
-    q            = request.args.get("q", "").strip()
-    cat_filter   = request.args.get("cat", "").strip()
-    badge_filter = request.args.get("badge", "").strip()
-    sort_by      = request.args.get("sort", "cat_name")
-    stock_filter = request.args.get("stock", "").strip()
-    page         = max(1, int(request.args.get("page", 1)))
-
-    filt = {}
-    if q:
-        filt["$or"] = [
-            {"name":     {"$regex": q, "$options": "i"}},
-            {"category": {"$regex": q, "$options": "i"}},
-        ]
-    if cat_filter:
-        filt["category"] = cat_filter
-    if badge_filter == "none":
-        filt["badge"] = None
-    elif badge_filter:
-        filt["badge"] = badge_filter
-    if stock_filter == "low":
-        filt["stock"] = {"$lt": 10}
-    elif stock_filter == "medium":
-        filt["stock"] = {"$gte": 10, "$lt": 30}
-    elif stock_filter == "ok":
-        filt["stock"] = {"$gte": 30}
-
-    sort_map = {
-        "cat_name":   [("category", 1), ("name", 1)],
-        "name":       [("name", 1)],
-        "price_asc":  [("price", 1)],
-        "price_desc": [("price", -1)],
-        "rating":     [("rating", -1)],
-        "stock_asc":  [("stock", 1)],
-        "newest":     [("seq_id", -1)],
-    }
-    sort_opts = sort_map.get(sort_by, [("category", 1), ("name", 1)])
-
-    total       = col("products").count_documents(filt)
-    items       = [doc_to_dict(p) for p in col("products").find(filt).sort(sort_opts).skip((page-1)*30).limit(30)]
-    total_pages = max(1, (total + 29) // 30)
-
-    all_cats   = sorted(CATEGORY_META.keys())
-    all_badges = ["Best Seller", "Premium", "Budget Pick", "New Arrival", "Limited", "Trending"]
-
-    return render_template("admin_products.html", products=items, q=q,
-        cat_filter=cat_filter, badge_filter=badge_filter,
-        sort_by=sort_by, stock_filter=stock_filter,
-        page=page, total_pages=total_pages, total=total,
-        all_cats=all_cats, all_badges=all_badges,
-        get_img=get_product_image)
+    q=request.args.get("q",""); page=max(1,int(request.args.get("page",1)))
+    filt={"name":{"$regex":q,"$options":"i"}} if q else {}
+    total=col("products").count_documents(filt)
+    items=[doc_to_dict(p) for p in col("products").find(filt).sort([("category",1),("name",1)]).skip((page-1)*30).limit(30)]
+    total_pages=max(1,(total+29)//30)
+    return render_template("admin_products.html",products=items,q=q,
+        page=page,total_pages=total_pages,total=total,get_img=get_product_image)
 
 @app.route("/admin/products/edit/<int:pid>", methods=["GET","POST"])
 @admin_required
@@ -2179,16 +2176,22 @@ def admin_add_product():
                     file_key = upload_image_to_gridfs(f.stream, new_pid, slot)
                     if file_key:
                         images.append(file_key)
-        col("products").insert_one({
-            "seq_id":new_pid,"name":request.form["name"],
-            "price":float(request.form["price"]),"category":request.form["category"],
-            "icon":request.form.get("icon","📦"),
-            "badge":request.form.get("badge","") or None,
-            "rating":float(request.form.get("rating",4.0)),
-            "reviews":0,"trending":int(request.form.get("trending",0)),
-            "stock":int(request.form.get("stock",100)),
-            "variants":"","images":images
-        })
+        # Retry with fresh seq_id if duplicate key (counter out of sync)
+        for _attempt in range(5):
+            try:
+                col("products").insert_one({
+                    "seq_id":new_pid,"name":request.form["name"],
+                    "price":float(request.form["price"]),"category":request.form["category"],
+                    "icon":request.form.get("icon","📦"),
+                    "badge":request.form.get("badge","") or None,
+                    "rating":float(request.form.get("rating",4.0)),
+                    "reviews":0,"trending":int(request.form.get("trending",0)),
+                    "stock":int(request.form.get("stock",100)),
+                    "variants":"","images":images
+                })
+                break  # success
+            except pymongo.errors.DuplicateKeyError:
+                new_pid = next_seq("products")  # get next safe id and retry
         msg=f"✅ Product added!{f' {len(images)} image(s) saved to database.' if images else ''}"
     return render_template("admin_add_product.html",msg=msg,new_pid=new_pid,
         categories=list(CATEGORY_META.keys()))
