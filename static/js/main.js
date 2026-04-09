@@ -259,6 +259,29 @@ function sendQuick(text) {
 /* ════════════════════
    AI RECOMMENDATIONS
 ════════════════════ */
+function resolveImgUrl(key) {
+  /* Mirrors the Python img_url() helper so all storage formats work in JS */
+  const PLACEHOLDER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'/%3E";
+  if (!key) return PLACEHOLDER;
+  const s = String(key).trim();
+  // Already a full URL
+  if (s.startsWith('http')) return s;
+  // Route path: "img/159/1" or "/img/159/1"
+  const clean = s.replace(/^\//, '');
+  if (clean.startsWith('img/')) {
+    const parts = clean.split('/');
+    if (parts.length === 3) return `/img/${parts[1]}/${parts[2]}`;
+  }
+  // GridFS key: "product_<id>_slot_<n>"
+  if (s.startsWith('product_') && s.includes('_slot_')) {
+    const [idPart, slotPart] = s.split('_slot_');
+    const pid  = idPart.replace('product_', '');
+    return `/img/${pid}/${slotPart}`;
+  }
+  // Local static file fallback
+  return `/static/${s}`;
+}
+
 (async function loadAIRecs() {
   const section = document.getElementById('aiRecsSection');
   const grid    = document.getElementById('aiRecsGrid');
@@ -273,12 +296,13 @@ function sendQuick(text) {
       const reviews = Number(p.reviews).toLocaleString('en-IN');
       const price   = Number(p.price).toLocaleString('en-IN', {maximumFractionDigits:0});
       const badge   = p.badge ? `<div class="card-badge badge-${p.badge.toLowerCase().replace(/ /g,'')}">${p.badge}</div>` : '';
+      const imgSrc  = resolveImgUrl(p.image);
       return `
         <div class="product-card">
           ${badge}
           <a href="/product/${p.id}" class="card-thumb-link">
             <div class="card-thumb">
-              <img src="/static/${p.image}" alt="${p.name}" loading="lazy">
+              <img src="${imgSrc}" alt="${p.name}" loading="lazy">
             </div>
           </a>
           <div class="card-body">
