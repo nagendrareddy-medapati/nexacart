@@ -3,74 +3,17 @@
 {% block page_title %}Users ({{ users|length }}){% endblock %}
 {% block content %}
 
-<!-- Role badge -->
 {% if is_super_admin %}
-<div style="display:inline-flex;align-items:center;gap:.5rem;background:#fef3c7;border:1px solid #f59e0b;color:#92400e;font-size:.75rem;font-weight:700;padding:.4rem 1rem;border-radius:8px;margin-bottom:1.2rem">
-  👑 You are logged in as <strong>Super Admin</strong> — you can approve requests, delete users and admins
+<div style="display:inline-flex;align-items:center;gap:.5rem;background:#fef3c7;border:1px solid #f59e0b;color:#92400e;font-size:.75rem;font-weight:700;padding:.4rem 1rem;border-radius:8px;margin-bottom:1rem">
+  👑 You are logged in as <strong>Super Admin</strong> — you can delete users and admins
 </div>
 {% else %}
-<div style="display:inline-flex;align-items:center;gap:.5rem;background:#f0f4ff;border:1px solid #c7d2fe;color:#3730a3;font-size:.75rem;padding:.4rem 1rem;border-radius:8px;margin-bottom:1.2rem">
-  ℹ️ Only the <strong>Super Admin</strong> can approve requests or delete users. You have view access.
+<div style="display:inline-flex;align-items:center;gap:.5rem;background:#f0f4ff;border:1px solid #c7d2fe;color:#3730a3;font-size:.75rem;padding:.4rem 1rem;border-radius:8px;margin-bottom:1rem">
+  ℹ️ Only the <strong>Super Admin</strong> can delete users. You have view-only access to this table.
 </div>
 {% endif %}
 
-<!-- PENDING ADMIN REQUESTS — visible to ALL admins, actionable by super admin only -->
-{% if pending_requests %}
-<div class="card" style="margin-bottom:1.5rem;border:1.5px solid #fbbf24">
-  <div class="card-hdr" style="background:#fffbeb;border-radius:10px 10px 0 0;display:flex;align-items:center;justify-content:space-between">
-    <h3 style="display:flex;align-items:center;gap:.5rem">
-      🕐 Pending Admin Requests
-      <span style="background:#f59e0b;color:#fff;font-size:.65rem;font-weight:700;padding:.15rem .55rem;border-radius:20px">{{ pending_requests|length }}</span>
-    </h3>
-    {% if not is_super_admin %}
-    <span style="font-size:.72rem;color:#92400e;font-style:italic">Awaiting super admin approval</span>
-    {% endif %}
-  </div>
-  <div style="overflow-x:auto">
-  <table>
-    <tr>
-      <th>Username</th>
-      <th>Email</th>
-      <th>Phone</th>
-      <th>Reason</th>
-      <th>Submitted</th>
-      <th>Action</th>
-    </tr>
-    {% for r in pending_requests %}
-    <tr>
-      <td><strong>{{ r['username'] }}</strong></td>
-      <td style="font-size:.82rem">{{ r.get('email') or '—' }}</td>
-      <td style="font-size:.82rem">{{ r.get('phone') or '—' }}</td>
-      <td style="font-size:.8rem;max-width:240px;color:#374151">{{ r.get('reason','—')[:120] }}</td>
-      <td style="font-size:.75rem;color:#6b7280;white-space:nowrap">{{ r.get('submitted_at','—') }}</td>
-      <td style="white-space:nowrap">
-        {% if is_super_admin %}
-        <div style="display:flex;gap:.4rem">
-          <form method="post" action="{{ url_for('admin_approve_request', request_id=r['_id']) }}"
-                onsubmit="return confirm('Approve {{ r[\'username\'] }} as admin? A temporary password will be generated and shown.')">
-            <button type="submit" class="ar-btn ar-btn-approve">✅ Approve</button>
-          </form>
-          <form method="post" action="{{ url_for('admin_decline_request', request_id=r['_id']) }}"
-                onsubmit="return confirm('Decline this request from {{ r[\'username\'] }}?')">
-            <button type="submit" class="ar-btn ar-btn-decline">✕ Decline</button>
-          </form>
-        </div>
-        {% else %}
-        <span style="font-size:.72rem;color:#9ca3af;font-style:italic">Super admin only</span>
-        {% endif %}
-      </td>
-    </tr>
-    {% endfor %}
-  </table>
-  </div>
-</div>
-{% else %}
-<div style="display:flex;align-items:center;gap:.6rem;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:.78rem;padding:.55rem 1rem;border-radius:8px;margin-bottom:1.2rem">
-  ✅ No pending admin access requests.
-</div>
-{% endif %}
-
-<!-- USERS TABLE -->
+<!-- Users Table -->
 <div class="card">
   <div class="card-hdr" style="display:flex;align-items:center;justify-content:space-between">
     <h3>All Registered Users</h3>
@@ -108,11 +51,11 @@
       </td>
       <td>
         {% if u['role'] == 'admin' %}
-        <span style="display:inline-flex;align-items:center;gap:.3rem;background:#fef3c7;color:#92400e;font-size:.68rem;font-weight:700;padding:.2rem .55rem;border-radius:20px">
+        <span style="display:inline-flex;align-items:center;gap:.3rem;background:#fef3c7;color:#92400e;font-size:.68rem;font-weight:700;padding:.2rem .55rem;border-radius:20px;letter-spacing:.06em">
           ⚙️ ADMIN
         </span>
         {% else %}
-        <span style="display:inline-flex;align-items:center;gap:.3rem;background:#f0fdf4;color:#15803d;font-size:.68rem;font-weight:700;padding:.2rem .55rem;border-radius:20px">
+        <span style="display:inline-flex;align-items:center;gap:.3rem;background:#f0fdf4;color:#15803d;font-size:.68rem;font-weight:700;padding:.2rem .55rem;border-radius:20px;letter-spacing:.06em">
           🛍️ BUYER
         </span>
         {% endif %}
@@ -120,18 +63,22 @@
       <td style="font-size:.82rem">{{ u['email'] or '—' }}</td>
       <td style="font-size:.82rem">{{ u['phone'] or '—' }}</td>
       <td style="font-size:.82rem">{{ u['city'] or '—' }}</td>
-      <td style="text-align:center"><strong>{{ u['order_count'] }}</strong></td>
+      <td style="text-align:center">
+        <strong>{{ u['order_count'] }}</strong>
+      </td>
       <td>
         <strong style="color:{% if u['total_spent'] > 10000 %}#15803d{% else %}inherit{% endif %}">
           ₹{{ "{:,.0f}".format(u['total_spent']) }}
         </strong>
       </td>
-      <td style="font-size:.75rem;color:#6b7280;white-space:nowrap">{{ u['joined'] or '—' }}</td>
+      <td style="font-size:.75rem;color:#6b7280;white-space:nowrap">
+        {{ u['joined'] or '—' }}
+      </td>
       {% if is_super_admin %}
       <td>
         {% if u['username'] != 'admin' %}
         <form method="post" action="{{ url_for('admin_delete_user', uid=u['id']) }}"
-              onsubmit="return confirm('Delete {{ u[\'username\'] }}? This removes their account, cart, wishlist, reviews and profile picture permanently.')">
+              onsubmit="return confirm('Delete {{ u['username'] }}? This removes their account, cart, wishlist, reviews and profile picture permanently.')">
           <button type="submit"
             style="background:#dc2626;color:#fff;border:none;border-radius:6px;padding:.3rem .75rem;font-size:.72rem;font-weight:600;cursor:pointer;transition:background .15s"
             onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
@@ -150,13 +97,4 @@
   </table>
   </div>
 </div>
-
-<style>
-.ar-btn{border:none;border-radius:6px;padding:.32rem .85rem;font-size:.73rem;font-weight:700;cursor:pointer;transition:background .15s,transform .1s}
-.ar-btn:hover{transform:scale(1.03)}
-.ar-btn-approve{background:#15803d;color:#fff}
-.ar-btn-approve:hover{background:#166534}
-.ar-btn-decline{background:#f3f4f6;color:#374151;border:1px solid #d1d5db}
-.ar-btn-decline:hover{background:#fee2e2;color:#dc2626;border-color:#fca5a5}
-</style>
 {% endblock %}

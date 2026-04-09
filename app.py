@@ -1143,133 +1143,19 @@ def register():
                 try:
                     phone_full = (country_code+phone) if phone else None
                     if account_type not in ("customer","admin"): account_type="customer"
-                    # Admin accounts need super-admin approval - redirect to request form
-                    if account_type == "admin":
-                        return redirect(url_for("request_admin_access",
-                            username=u, email=email,
-                            phone=phone_full or ""))
                     uid = next_seq("users")
                     col("users").insert_one({
                         "seq_id":uid,"username":u,
                         "password":generate_password_hash(pw),
                         "email":email or None,"phone":phone_full,
                         "country_code":country_code,"is_verified":1,
-                        "role":"customer","joined":datetime.datetime.utcnow(),
+                        "role":account_type,"joined":datetime.datetime.utcnow(),
                         "address":None,"city":None,"pincode":None
                     })
                     return redirect(url_for("login"))
                 except Exception as ex:
                     error="Registration failed. Please try again."
     return render_template("register.html", error=error, form_data=form_data)
-
-
-# ===========================================================
-# ADMIN REQUEST SYSTEM
-# ===========================================================
-@app.route("/request-admin", methods=["GET", "POST"])
-def request_admin_access():
-    """Page for users who chose 'Admin' account type during registration.
-    Saves the request to MongoDB; all admins can see it, super admin can approve/decline."""
-    msg = None
-    prefill = {
-        "username": request.args.get("username", ""),
-        "email":    request.args.get("email", ""),
-        "phone":    request.args.get("phone", ""),
-    }
-    if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        email    = request.form.get("email", "").strip()
-        phone    = request.form.get("phone", "").strip()
-        reason   = request.form.get("reason", "").strip()
-        if not username:
-            msg = "error:Username is required."
-        elif not reason:
-            msg = "error:Please provide a reason for admin access."
-        else:
-            # Check for duplicate pending request
-            existing = col("admin_requests").find_one({"username": username, "status": "pending"})
-            if existing:
-                msg = "error:A request for this username is already pending review."
-            else:
-                col("admin_requests").insert_one({
-                    "username":     username,
-                    "email":        email or None,
-                    "phone":        phone or None,
-                    "reason":       reason,
-                    "status":       "pending",
-                    "submitted_at": datetime.datetime.utcnow(),
-                })
-                msg = "success:Your request has been submitted! An admin will review it and contact you."
-    return render_template("request_admin.html", msg=msg, prefill=prefill)
-
-
-@app.route("/admin/approve-request/<request_id>", methods=["POST"])
-@admin_required
-def admin_approve_request(request_id):
-    """Super admin approves an admin access request and creates the admin account."""
-    if not session.get("is_super_admin"):
-        return jsonify({"error": "Only super admin can approve requests"}), 403
-    try:
-        from bson import ObjectId
-        req = col("admin_requests").find_one({"_id": ObjectId(request_id)})
-        if not req:
-            return redirect(url_for("admin_users"))
-        # Check if username already taken
-        if col("users").find_one({"username": req["username"]}):
-            col("admin_requests").update_one(
-                {"_id": ObjectId(request_id)},
-                {"$set": {"status": "declined", "note": "Username already registered", "actioned_at": datetime.datetime.utcnow()}}
-            )
-            return redirect(url_for("admin_users"))
-        # Create the admin account with a temporary password
-        temp_pw = secrets.token_urlsafe(8)
-        uid = next_seq("users")
-        col("users").insert_one({
-            "seq_id":       uid,
-            "username":     req["username"],
-            "password":     generate_password_hash(temp_pw),
-            "email":        req.get("email"),
-            "phone":        req.get("phone"),
-            "country_code": "+91",
-            "is_verified":  1,
-            "role":         "admin",
-            "joined":       datetime.datetime.utcnow(),
-            "address":      None, "city": None, "pincode": None,
-        })
-        col("admin_requests").update_one(
-            {"_id": ObjectId(request_id)},
-            {"$set": {
-                "status":      "approved",
-                "temp_pw":     temp_pw,
-                "actioned_at": datetime.datetime.utcnow(),
-                "actioned_by": session.get("user"),
-            }}
-        )
-    except Exception as e:
-        app.logger.error(f"approve_request error: {e}")
-    return redirect(url_for("admin_users"))
-
-
-@app.route("/admin/decline-request/<request_id>", methods=["POST"])
-@admin_required
-def admin_decline_request(request_id):
-    """Super admin declines an admin access request."""
-    if not session.get("is_super_admin"):
-        return jsonify({"error": "Only super admin can decline requests"}), 403
-    try:
-        from bson import ObjectId
-        col("admin_requests").update_one(
-            {"_id": ObjectId(request_id)},
-            {"$set": {
-                "status":      "declined",
-                "actioned_at": datetime.datetime.utcnow(),
-                "actioned_by": session.get("user"),
-            }}
-        )
-    except Exception as e:
-        app.logger.error(f"decline_request error: {e}")
-    return redirect(url_for("admin_users"))
-
 
 @app.route("/logout")
 def logout():
@@ -2167,13 +2053,56 @@ def admin_dashboard():
 @app.route("/admin/products")
 @admin_required
 def admin_products():
-    q=request.args.get("q",""); page=max(1,int(request.args.get("page",1)))
-    filt={"name":{"$regex":q,"$options":"i"}} if q else {}
-    total=col("products").count_documents(filt)
-    items=[doc_to_dict(p) for p in col("products").find(filt).sort([("category",1),("name",1)]).skip((page-1)*30).limit(30)]
-    total_pages=max(1,(total+29)//30)
-    return render_template("admin_products.html",products=items,q=q,
-        page=page,total_pages=total_pages,total=total,get_img=get_product_image)
+    q            = request.args.get("q", "").strip()
+    cat_filter   = request.args.get("cat", "").strip()
+    badge_filter = request.args.get("badge", "").strip()
+    sort_by      = request.args.get("sort", "cat_name")
+    stock_filter = request.args.get("stock", "").strip()
+    page         = max(1, int(request.args.get("page", 1)))
+
+    filt = {}
+    if q:
+        filt["$or"] = [
+            {"name":     {"$regex": q, "$options": "i"}},
+            {"category": {"$regex": q, "$options": "i"}},
+        ]
+    if cat_filter:
+        filt["category"] = cat_filter
+    if badge_filter == "none":
+        filt["badge"] = None
+    elif badge_filter:
+        filt["badge"] = badge_filter
+    if stock_filter == "low":
+        filt["stock"] = {"$lt": 10}
+    elif stock_filter == "medium":
+        filt["stock"] = {"$gte": 10, "$lt": 30}
+    elif stock_filter == "ok":
+        filt["stock"] = {"$gte": 30}
+
+    sort_map = {
+        "cat_name":   [("category", 1), ("name", 1)],
+        "name":       [("name", 1)],
+        "price_asc":  [("price", 1)],
+        "price_desc": [("price", -1)],
+        "rating":     [("rating", -1)],
+        "stock_asc":  [("stock", 1)],
+        "newest":     [("seq_id", -1)],
+    }
+    sort_opts = sort_map.get(sort_by, [("category", 1), ("name", 1)])
+
+    total       = col("products").count_documents(filt)
+    items       = [doc_to_dict(p) for p in col("products").find(filt).sort(sort_opts).skip((page-1)*30).limit(30)]
+    total_pages = max(1, (total + 29) // 30)
+
+    all_cats   = sorted(CATEGORY_META.keys())
+    all_badges = ["Best Seller", "Premium", "Budget Pick", "New Arrival", "Limited", "Trending"]
+
+    return render_template("admin_products.html", products=items, q=q,
+        cat_filter=cat_filter, badge_filter=badge_filter,
+        sort_by=sort_by, stock_filter=stock_filter,
+        page=page, total_pages=total_pages, total=total,
+        all_cats=all_cats, all_badges=all_badges,
+        get_img=get_product_image)
 
 @app.route("/admin/products/edit/<int:pid>", methods=["GET","POST"])
 @admin_required
@@ -2717,13 +2646,7 @@ def admin_users():
         if hasattr(u.get("joined",""),"strftime"):
             u["joined"]=u["joined"].strftime("%Y-%m-%d %H:%M")
     is_super_admin = session.get("is_super_admin", False)
-    # Load pending admin requests - visible to all admins, actionable by super admin
-    pending_requests = list(col("admin_requests").find({"status": "pending"}).sort("submitted_at", -1))
-    for r in pending_requests:
-        r["_id"] = str(r["_id"])
-        if hasattr(r.get("submitted_at"), "strftime"):
-            r["submitted_at"] = r["submitted_at"].strftime("%Y-%m-%d %H:%M")
-    return render_template("admin_users.html", users=users, pending_requests=pending_requests, is_super_admin=is_super_admin)
+    return render_template("admin_users.html", users=users, pending_requests=[], is_super_admin=is_super_admin)
 
 # ═══════════════════════════════════════════════════════════
 # API ROUTES
