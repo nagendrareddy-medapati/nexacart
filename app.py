@@ -729,7 +729,7 @@ def get_cart_items(user_id):
             "quantity": 1, "variant": 1,
             "id": "$product.seq_id",
             "name": "$product.name",
-            "price": "$product.price",
+            "price": {"$ifNull": ["$price", "$product.price"]},
             "category": "$product.category",
             "icon": "$product.icon",
             "badge": "$product.badge",
@@ -1401,12 +1401,14 @@ def product_detail(pid):
     features       = _get_product_features(p["category"], p["name"])
     product_images = get_product_images(pid)
 
+    spec_prices=p.get("spec_prices") or {}
     return render_template("product_detail.html",
         p=p, related=related, user_revs=user_revs, rating_dist=rating_dist,
         total_rev_count=total_rev_count, already_reviewed=already_reviewed,
         discount_pct=discount_pct, original_price=original_price,
         variants=variants, features=features, in_wishlist=in_wishlist,
         review_msg=review_msg, product_images=product_images,
+        spec_prices=spec_prices,
         username=session["user"], cart_count=get_cart_count(uid),
         get_img=get_product_image)
 
@@ -1419,15 +1421,34 @@ def add_to_cart(pid):
     uid = get_user_id()
     qty = int(request.form.get("qty",1))
     variant = request.form.get("variant","")
+    # Resolve price: check spec_prices for selected choices
+    prod = col("products").find_one({"seq_id":pid})
+    resolved_price = prod["price"] if prod else 0
+    if prod and prod.get("spec_prices"):
+        sp = prod["spec_prices"]
+        # Parse variant string "Label: Choice | Label2: Choice2"
+        sel = {}
+        for part in variant.split(" | "):
+            if ":" in part:
+                lbl,val = part.split(":",1)
+                sel[lbl.strip().lower()] = val.strip()
+        # Get customization opts to map label -> key
+        copts = get_customization_options(prod.get("category",""), prod.get("name",""))
+        for opt in copts:
+            chosen = sel.get(opt["label"].lower())
+            if chosen and opt["key"] in sp and chosen in sp[opt["key"]]:
+                resolved_price = sp[opt["key"]][chosen]
+                break
     existing = col("cart").find_one({"user_id":uid,"product_id":pid})
     if existing:
         col("cart").update_one({"_id":existing["_id"]},
-            {"$inc":{"quantity":qty},"$set":{"variant":variant}})
+            {"$inc":{"quantity":qty},"$set":{"variant":variant,"price":resolved_price}})
     else:
         seq = next_seq("cart")
         col("cart").insert_one({
             "seq_id":seq,"user_id":uid,"product_id":pid,
-            "quantity":qty,"variant":variant,"added_at":datetime.datetime.utcnow()
+            "quantity":qty,"variant":variant,"price":resolved_price,
+            "added_at":datetime.datetime.utcnow()
         })
     return redirect(request.referrer or url_for("cart"))
 
@@ -2111,16 +2132,31 @@ def admin_edit_product(pid):
         new_cat=request.form["category"]; new_name=request.form["name"]
         copts=get_customization_options(new_cat,new_name)
         var_parts=[]
+        # Build spec_prices: {opt_key: {choice: price}}
+        spec_prices={}
         for opt in copts:
             val=request.form.get(f"opt_{opt['key']}","").strip()
             if val: var_parts.append(f"{opt['label']}: {val}")
+            choice_prices={}
+            for choice in opt["choices"]:
+                price_key=f"spec_price_{opt['key']}_{choice}"
+                raw=request.form.get(price_key,"").strip()
+                if raw:
+                    try: choice_prices[choice]=float(raw)
+                    except ValueError: pass
+            if choice_prices:
+                spec_prices[opt["key"]]=choice_prices
         variants_str=" | ".join(var_parts)
+        base_price=float(request.form["price"])
+        if spec_prices:
+            all_sp=[v2 for cp in spec_prices.values() for v2 in cp.values()]
+            if all_sp: base_price=min(all_sp)
 
         update={
-            "name":new_name,"price":float(request.form["price"]),"category":new_cat,
+            "name":new_name,"price":base_price,"category":new_cat,
             "badge":request.form.get("badge","") or None,"rating":float(request.form["rating"]),
             "stock":int(request.form.get("stock",100)),"trending":int(request.form.get("trending",0)),
-            "variants":variants_str
+            "variants":variants_str,"spec_prices":spec_prices
         }
 
         # Handle image uploads to MongoDB GridFS
@@ -2179,15 +2215,32 @@ def admin_add_product():
         # Retry with fresh seq_id if duplicate key (counter out of sync)
         for _attempt in range(5):
             try:
+                new_cat2=request.form["category"]
+                new_name2=request.form["name"]
+                copts2=get_customization_options(new_cat2,new_name2)
+                spec_prices2={}
+                for opt2 in copts2:
+                    cp2={}
+                    for ch2 in opt2["choices"]:
+                        pk2=f"spec_price_{opt2['key']}_{ch2}"
+                        rv2=request.form.get(pk2,"").strip()
+                        if rv2:
+                            try: cp2[ch2]=float(rv2)
+                            except ValueError: pass
+                    if cp2: spec_prices2[opt2["key"]]=cp2
+                base_price2=float(request.form["price"])
+                if spec_prices2:
+                    all_sp2=[v2 for cp in spec_prices2.values() for v2 in cp.values()]
+                    if all_sp2: base_price2=min(all_sp2)
                 col("products").insert_one({
-                    "seq_id":new_pid,"name":request.form["name"],
-                    "price":float(request.form["price"]),"category":request.form["category"],
+                    "seq_id":new_pid,"name":new_name2,
+                    "price":base_price2,"category":new_cat2,
                     "icon":request.form.get("icon","📦"),
                     "badge":request.form.get("badge","") or None,
                     "rating":float(request.form.get("rating",4.0)),
                     "reviews":0,"trending":int(request.form.get("trending",0)),
                     "stock":int(request.form.get("stock",100)),
-                    "variants":"","images":images
+                    "variants":"","spec_prices":spec_prices2,"images":images
                 })
                 break  # success
             except pymongo.errors.DuplicateKeyError:

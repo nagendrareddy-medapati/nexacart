@@ -62,32 +62,50 @@
       </form>
     </div>
 
-    <!-- Product Options -->
+    <!-- Product Options with per-spec Pricing -->
     {% if custom_opts %}
     <div class="card" style="margin-bottom:1.2rem">
-      <div class="card-hdr"><h3>⚙️ Product Options</h3></div>
+      <div class="card-hdr"><h3>⚙️ Product Options &amp; Pricing</h3></div>
       <div style="padding:1.4rem">
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.2rem">
-          {% for opt in custom_opts %}
-          <div class="opt-group">
-            <label class="opt-label">{{ opt.label }}
-              {% if opt.required %}<span class="opt-required">Required</span>
-              {% else %}<span class="opt-optional">Optional</span>{% endif %}
-            </label>
-            {% set sv = saved_variants.get(opt.key, '') or saved_variants.get(opt.label|lower, '') %}
-            {% if sv %}<div style="margin-bottom:.3rem"><span class="opt-saved-badge">Currently: <strong>{{ sv }}</strong></span></div>{% endif %}
-            <div class="opt-choices" id="choices_{{ opt.key }}">
-              {% for choice in opt.choices %}
-              <button type="button" class="opt-choice-btn {% if choice==sv %}selected{% endif %}"
-                      onclick="selectOpt('{{ opt.key }}',this,'{{ choice }}')">{{ choice }}</button>
-              {% endfor %}
+        <p style="font-size:.8rem;color:#6b7280;margin-bottom:1.2rem;background:#fff8e1;padding:.6rem .8rem;border-radius:6px;border-left:3px solid #f59e0b">
+          💡 Set a price for each specification choice. Leave blank to use the base price. The lowest spec price will be used as the displayed base price.
+        </p>
+        {% for opt in custom_opts %}
+        {% set sv = saved_variants.get(opt.key, '') or saved_variants.get(opt.label|lower, '') %}
+        <div class="opt-group" style="margin-bottom:1.8rem;padding-bottom:1.2rem;border-bottom:1px solid #f0f0f0">
+          <label class="opt-label" style="font-size:.95rem;font-weight:700;margin-bottom:.7rem;display:block">
+            {{ opt.label }}
+            {% if opt.required %}<span class="opt-required">Required</span>
+            {% else %}<span class="opt-optional">Optional</span>{% endif %}
+          </label>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.65rem;margin-bottom:.8rem">
+            {% for choice in opt.choices %}
+            {% set sp_val = p.get('spec_prices', {}).get(opt.key, {}).get(choice, '') %}
+            <div style="background:#f9fafb;border-radius:8px;padding:.7rem .8rem;border:1px solid #e5e7eb">
+              <div style="font-weight:600;font-size:.82rem;color:#374151;margin-bottom:.4rem">{{ choice }}</div>
+              <div style="display:flex;align-items:center;gap:.25rem">
+                <span style="color:#6b7280;font-size:.85rem;font-weight:600">₹</span>
+                <input type="number" name="spec_price_{{ opt.key }}_{{ choice }}"
+                       value="{{ sp_val if sp_val else '' }}"
+                       placeholder="{{ p['price']|int }}"
+                       min="0" step="0.01" form="editForm"
+                       style="width:100%;border:1px solid #d1d5db;border-radius:5px;padding:.3rem .4rem;font-size:.82rem;background:#fff">
+              </div>
             </div>
-            <input type="text" name="opt_{{ opt.key }}" id="opt_{{ opt.key }}" value="{{ sv }}"
-                   placeholder="Select above or type…" class="opt-text-input"
-                   style="margin-top:.5rem;width:100%;box-sizing:border-box" form="editForm">
+            {% endfor %}
           </div>
-          {% endfor %}
+          <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">
+            <span style="font-size:.78rem;color:#9ca3af">Default selected:</span>
+            {% for choice in opt.choices %}
+            <button type="button" class="opt-choice-btn {% if choice==sv %}selected{% endif %}"
+                    onclick="selectOpt('{{ opt.key }}',this,'{{ choice }}')">{{ choice }}</button>
+            {% endfor %}
+          </div>
+          <input type="text" name="opt_{{ opt.key }}" id="opt_{{ opt.key }}" value="{{ sv }}"
+                 placeholder="Select above or type…" class="opt-text-input"
+                 style="margin-top:.4rem;width:100%;box-sizing:border-box;display:none" form="editForm">
         </div>
+        {% endfor %}
       </div>
     </div>
     {% endif %}

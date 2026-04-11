@@ -1055,9 +1055,12 @@ label{display:block;font-size:.72rem;font-weight:500;letter-spacing:.14em;text-t
 /* ── Variant selector ── */
 .pd-variant-row{margin-bottom:1.2rem}
 .pd-variants{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem}
-.pd-variant-btn{padding:.4rem .9rem;border:1.5px solid var(--border);border-radius:5px;background:#fff;font-family:var(--body);font-size:.82rem;color:var(--ink);cursor:pointer;transition:all .18s}
+.pd-variant-btn{padding:.4rem .9rem;border:1.5px solid var(--border);border-radius:5px;background:#fff;font-family:var(--body);font-size:.82rem;color:var(--ink);cursor:pointer;transition:all .18s;display:flex;flex-direction:column;align-items:center;gap:.15rem}
 .pd-variant-btn:hover{border-color:var(--forest);color:var(--forest)}
 .pd-variant-btn.active{background:var(--forest);border-color:var(--forest);color:#fff;font-weight:600}
+.pd-spec-price{font-size:.68rem;font-weight:700;opacity:.85;letter-spacing:.01em}
+.pd-variant-btn.active .pd-spec-price{color:#d4f5c0}
+.pd-variant-btn:not(.active) .pd-spec-price{color:var(--forest)}
 .pd-stock-low{font-size:.78rem;color:var(--terracotta);font-weight:500;margin-bottom:.8rem;padding:.4rem .8rem;background:#fdf0eb;border-radius:4px;display:inline-block}
 
 /* ── Write review ── */

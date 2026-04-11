@@ -95,11 +95,11 @@
 
     <!-- Price block -->
     <div class="pd-price-block">
-      <div class="pd-current-price"><sub>₹</sub>{{ "{:,.0f}".format(p['price']) }}</div>
-      <div class="pd-original-price">₹{{ "{:,.0f}".format(original_price) }}</div>
-      <div class="pd-discount-badge">{{ discount_pct }}% OFF</div>
+      <div class="pd-current-price" id="pdCurrentPrice"><sub>₹</sub><span id="pdPriceVal">{{ "{:,.0f}".format(p['price']) }}</span></div>
+      <div class="pd-original-price" id="pdOriginalPrice">₹<span id="pdOriginalVal">{{ "{:,.0f}".format(original_price) }}</span></div>
+      <div class="pd-discount-badge" id="pdDiscountBadge">{{ discount_pct }}% OFF</div>
     </div>
-    <div class="pd-savings">You save ₹{{ "{:,.0f}".format(original_price - p['price']) }}</div>
+    <div class="pd-savings" id="pdSavings">You save ₹<span id="pdSavingsVal">{{ "{:,.0f}".format(original_price - p['price']) }}</span></div>
     <div class="pd-tax-note">Inclusive of all taxes. Free delivery on this order.</div>
 
     <!-- Customization Options -->
@@ -115,8 +115,14 @@
           {% for choice in opt.choices %}
           <button type="button" class="pd-variant-btn"
                   onclick="selectOption('{{ opt.key }}', this, '{{ choice }}')"
-                  data-key="{{ opt.key }}" data-val="{{ choice }}">
+                  data-key="{{ opt.key }}" data-val="{{ choice }}"
+                  {% if spec_prices and opt.key in spec_prices and choice in spec_prices[opt.key] %}
+                  data-price="{{ spec_prices[opt.key][choice] }}"
+                  {% endif %}>
             {{ choice }}
+            {% if spec_prices and opt.key in spec_prices and choice in spec_prices[opt.key] %}
+            <span class="pd-spec-price">₹{{ "{:,.0f}".format(spec_prices[opt.key][choice]) }}</span>
+            {% endif %}
           </button>
           {% endfor %}
         </div>
@@ -466,6 +472,12 @@ function syncForm() {
   document.getElementById('qtyInput').value = document.getElementById('qty').textContent;
 }
 
+// Spec prices injected from server
+const SPEC_PRICES = {{ spec_prices | tojson }};
+const BASE_PRICE = {{ p['price'] }};
+const BASE_ORIGINAL = {{ original_price }};
+const DISCOUNT_PCT = {{ discount_pct }};
+
 function selectOption(key, btn, val) {
   // Deactivate others in same group
   document.querySelectorAll(`.pd-variant-btn[data-key="${key}"]`)
@@ -482,6 +494,22 @@ function selectOption(key, btn, val) {
     }
   });
   document.getElementById('selectedVariant').value = parts.join(' | ');
+
+  // Update price if spec_prices exist
+  if (SPEC_PRICES && SPEC_PRICES[key] && SPEC_PRICES[key][val] !== undefined) {
+    const newPrice = SPEC_PRICES[key][val];
+    const newOriginal = Math.round(newPrice / (1 - DISCOUNT_PCT / 100));
+    const savings = newOriginal - newPrice;
+    document.getElementById('pdPriceVal').textContent = newPrice.toLocaleString('en-IN', {maximumFractionDigits:0});
+    document.getElementById('pdOriginalVal').textContent = newOriginal.toLocaleString('en-IN', {maximumFractionDigits:0});
+    document.getElementById('pdSavingsVal').textContent = savings.toLocaleString('en-IN', {maximumFractionDigits:0});
+    document.getElementById('pdDiscountBadge').textContent = DISCOUNT_PCT + '% OFF';
+  } else {
+    // Revert to base price if no spec price for this selection
+    document.getElementById('pdPriceVal').textContent = BASE_PRICE.toLocaleString('en-IN', {maximumFractionDigits:0});
+    document.getElementById('pdOriginalVal').textContent = BASE_ORIGINAL.toLocaleString('en-IN', {maximumFractionDigits:0});
+    document.getElementById('pdSavingsVal').textContent = (BASE_ORIGINAL - BASE_PRICE).toLocaleString('en-IN', {maximumFractionDigits:0});
+  }
 }
 
 // Validate required options before add-to-cart

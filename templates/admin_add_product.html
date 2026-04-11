@@ -11,13 +11,14 @@
 
       <div class="form-row">
         <div class="form-group"><label>Product Name *</label>
-          <input name="name" placeholder="e.g. Samsung Galaxy S25" required></div>
-        <div class="form-group"><label>Price (₹) *</label>
-          <input type="number" name="price" placeholder="49999" min="0" step="0.01" required></div>
+          <input name="name" id="addName" placeholder="e.g. Samsung Galaxy S25" required oninput="loadSpecOptions()"></div>
+        <div class="form-group"><label>Base Price (₹) *</label>
+          <small style="color:#6b7280;display:block;font-size:.72rem;margin-bottom:.2rem">Auto-set to lowest spec price when specs are priced individually</small>
+          <input type="number" name="price" id="addPrice" placeholder="49999" min="0" step="0.01" required></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>Category *</label>
-          <select name="category" required>{% for c in categories %}<option>{{ c }}</option>{% endfor %}</select>
+          <select name="category" id="addCategory" required onchange="loadSpecOptions()">{% for c in categories %}<option>{{ c }}</option>{% endfor %}</select>
         </div>
         <div class="form-group"><label>Badge</label>
           <select name="badge">
@@ -39,6 +40,17 @@
         <div class="form-group"><label>Trending?</label>
           <select name="trending"><option value="0">No</option><option value="1">Yes</option></select>
         </div>
+      </div>
+
+      <!-- Spec Options & Pricing -->
+      <div id="specOptionsSection" style="margin-top:1.2rem;padding-top:1rem;border-top:1px solid #e5e7eb;display:none">
+        <label style="font-size:.75rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#374151;display:block;margin-bottom:.4rem">
+          ⚙️ Specification Options &amp; Pricing
+        </label>
+        <p style="font-size:.75rem;color:#6b7280;margin-bottom:.8rem;background:#fff8e1;padding:.5rem .7rem;border-radius:6px;border-left:3px solid #f59e0b">
+          💡 Optionally set individual prices per spec choice. Leave blank to use the base price above.
+        </p>
+        <div id="specOptionsGrid"></div>
       </div>
 
       <!-- Images -->
@@ -124,6 +136,54 @@
 </style>
 
 <script>
+// Spec options map for client-side rendering
+const SPEC_OPTIONS_RAW = {
+  "Smartphones": [{label:"Storage",key:"storage",required:true,choices:["128 GB","256 GB","512 GB","1 TB"]},{label:"Colour",key:"colour",required:true,choices:["Midnight Black","Pearl White","Deep Blue","Forest Green","Titanium"]}],
+  "Laptops & Computers": [{label:"RAM",key:"ram",required:true,choices:["8 GB RAM","16 GB RAM","32 GB RAM","64 GB RAM"]},{label:"Storage",key:"storage",required:true,choices:["256 GB SSD","512 GB SSD","1 TB SSD","2 TB SSD"]}],
+  "Audio": [{label:"Colour",key:"colour",required:false,choices:["Black","White","Navy Blue","Silver","Rose Gold"]},{label:"Connectivity",key:"connectivity",required:false,choices:["Bluetooth","Wired","Both"]}],
+  "Wearables": [{label:"Band Size",key:"size",required:true,choices:["Small (130–180 mm)","Medium (150–200 mm)","Large (170–220 mm)"]},{label:"Colour",key:"colour",required:false,choices:["Black","Silver","Gold","Rose Gold","Midnight"]}],
+  "Electronics": [{label:"Colour",key:"colour",required:false,choices:["Black","White","Silver","Grey"]}],
+  "Clothing — Men": [{label:"Size",key:"size",required:true,choices:["XS","S","M","L","XL","XXL","3XL"]},{label:"Colour",key:"colour",required:true,choices:["White","Black","Navy Blue","Grey","Olive","Maroon","Royal Blue"]}],
+  "Clothing — Women": [{label:"Size",key:"size",required:true,choices:["XS","S","M","L","XL","XXL"]},{label:"Colour",key:"colour",required:true,choices:["White","Black","Pink","Beige","Red","Teal","Lavender","Mustard"]}],
+  "Clothing — Kids": [{label:"Age / Size",key:"size",required:true,choices:["1-2 Y","2-3 Y","3-4 Y","4-5 Y","5-6 Y","6-7 Y","8-9 Y","10-11 Y"]},{label:"Colour",key:"colour",required:false,choices:["White","Blue","Pink","Yellow","Green","Red","Multicolour"]}],
+  "Footwear": [{label:"Size (UK)",key:"size",required:true,choices:["UK 3","UK 4","UK 5","UK 6","UK 7","UK 8","UK 9","UK 10","UK 11","UK 12"]},{label:"Colour",key:"colour",required:false,choices:["Black","White","Brown","Navy","Grey","Tan"]}],
+  "Fashion Accessories": [{label:"Colour",key:"colour",required:false,choices:["Black","Brown","Tan","Navy","Burgundy","Olive","Nude"]}],
+  "Jewellery": [{label:"Metal",key:"metal",required:true,choices:["Gold (22K)","Gold (18K)","Rose Gold","Silver (925)","Platinum"]},{label:"Size",key:"size",required:false,choices:["Free Size","Size 6","Size 8","Size 10","Size 12","Size 14","Size 16"]}],
+  "Beauty & Skincare": [{label:"Pack Size",key:"pack",required:false,choices:["30 ml","50 ml","100 ml","150 ml","200 ml"]}],
+  "Hair Care": [{label:"Pack Size",key:"pack",required:false,choices:["30 ml","50 ml","100 ml","150 ml","200 ml"]}],
+  "Fragrances": [{label:"Size",key:"size",required:true,choices:["25 ml","50 ml","75 ml","100 ml","150 ml"]}],
+  "Furniture": [{label:"Finish / Colour",key:"colour",required:true,choices:["Natural Wood","Dark Walnut","White","Grey","Black"]}],
+  "Books & Stationery": [{label:"Pack of",key:"pack",required:false,choices:["1","2","3","5","10"]}],
+  "Stationery & Office": [{label:"Pack of",key:"pack",required:false,choices:["1","2","3","5","10"]}],
+  "Groceries & Food": [{label:"Pack Size",key:"pack",required:false,choices:["250 g","500 g","1 kg","2 kg","5 kg"]}],
+  "Pet Supplies": [{label:"Pack Size",key:"pack",required:false,choices:["500 g","1 kg","3 kg","7 kg","15 kg"]},{label:"Flavour",key:"flavour",required:false,choices:["Original","Chicken","Beef","Lamb","Salmon","Vegetarian"]}],
+  "Travel & Luggage": [{label:"Colour",key:"colour",required:false,choices:["Black","Navy Blue","Red","Grey","Olive Green","Rose Gold"]},{label:"Size",key:"size",required:false,choices:["Cabin (18\u201320\u201d)","Medium (24\u201326\u201d)","Large (28\u201332\u201d)"]}],
+  "Appliances": "dynamic",
+  "Sports & Fitness": "dynamic"
+};
+
+function getSpecOpts(cat, nameLower) {
+  const raw = SPEC_OPTIONS_RAW[cat];
+  if (!raw) return [];
+  if (raw === "dynamic") {
+    if (cat === "Appliances") {
+      let choices = ["Standard","Large","XL"];
+      if (nameLower.includes("wash")) choices = ["6 kg","7 kg","8 kg","9 kg","10 kg"];
+      else if (nameLower.includes("fridge")||nameLower.includes("refrig")) choices = ["180 L","253 L","320 L","450 L"];
+      else if (nameLower.includes(" ac")||nameLower.includes("condition")) choices = ["0.75 Ton","1 Ton","1.5 Ton","2 Ton"];
+      return [{label:"Capacity",key:"capacity",required:true,choices}];
+    }
+    if (cat === "Sports & Fitness") {
+      if (["mat","rug"].some(w=>nameLower.includes(w))) return [{label:"Thickness",key:"thickness",required:false,choices:["4 mm","6 mm","8 mm","10 mm"]}];
+      if (["shoe","boot","sneaker","running"].some(w=>nameLower.includes(w))) return [{label:"Size (UK)",key:"size",required:true,choices:["UK 6","UK 7","UK 8","UK 9","UK 10","UK 11"]}];
+      if (["weight","dumbbell","kg"].some(w=>nameLower.includes(w))) return [{label:"Weight",key:"weight",required:true,choices:["1 kg","2 kg","5 kg","10 kg","15 kg","20 kg"]}];
+      return [];
+    }
+    return [];
+  }
+  return raw;
+}
+
 const slotData = {};
 
 function addPreview(input, previewId) {
@@ -174,6 +234,61 @@ function updateStrip() {
         font-size:.55rem;font-weight:700;padding:.1rem .35rem;border-radius:10px">${k}</span>
     </div>`
   ).join('');
+}
+
+let specDebounce = null;
+function loadSpecOptions() {
+  clearTimeout(specDebounce);
+  specDebounce = setTimeout(_doLoadSpecOptions, 150);
+}
+
+function _doLoadSpecOptions() {
+  const cat = document.getElementById('addCategory').value;
+  const name = document.getElementById('addName').value.toLowerCase();
+  const opts = resolveSpecOptions(cat, name);
+  const section = document.getElementById('specOptionsSection');
+  const grid = document.getElementById('specOptionsGrid');
+  if (!opts || opts.length === 0) {
+    section.style.display = 'none';
+    grid.innerHTML = '';
+    return;
+  }
+  section.style.display = 'block';
+  const basePrice = document.getElementById('addPrice').value || '';
+  grid.innerHTML = opts.map(opt => `
+    <div style="margin-bottom:1.4rem;padding-bottom:1rem;border-bottom:1px solid #f0f0f0">
+      <div style="font-weight:700;font-size:.9rem;color:#374151;margin-bottom:.6rem">
+        ${opt.label}${opt.required ? ' <span style="color:#e53e3e;font-size:.75rem">Required</span>' : ''}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:.5rem">
+        ${opt.choices.map(ch => `
+          <div style="background:#f9fafb;border-radius:7px;padding:.6rem .7rem;border:1px solid #e5e7eb">
+            <div style="font-size:.8rem;font-weight:600;color:#374151;margin-bottom:.35rem">${ch}</div>
+            <div style="display:flex;align-items:center;gap:.2rem">
+              <span style="color:#6b7280;font-size:.82rem;font-weight:600">₹</span>
+              <input type="number" name="spec_price_${opt.key}_${ch.replace(/[^a-zA-Z0-9]/g,'_')}_raw"
+                     data-spec-key="${opt.key}" data-spec-choice="${ch}"
+                     placeholder="${basePrice || 'price'}" min="0" step="0.01"
+                     oninput="syncSpecPriceInput(this,'${opt.key}','${ch.replace(/'/g,"\'")}')"
+                     style="width:100%;border:1px solid #d1d5db;border-radius:5px;padding:.3rem .4rem;font-size:.8rem;background:#fff">
+              <!-- actual hidden input with proper name -->
+              <input type="hidden" name="spec_price_${opt.key}_${ch}" id="sph_${opt.key}_${encodeURIComponent(ch)}">
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function syncSpecPriceInput(el, key, choice) {
+  const hidId = 'sph_' + key + '_' + encodeURIComponent(choice);
+  const hid = document.getElementById(hidId);
+  if (hid) hid.value = el.value;
+}
+
+function resolveSpecOptions(cat, nameLower) {
+  return getSpecOpts(cat, nameLower);
 }
 </script>
 {% endblock %}
