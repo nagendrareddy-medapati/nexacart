@@ -2902,12 +2902,267 @@ def api_recommendations():
         "image":get_product_image(p["id"])} for p in rows])
 
 # ═══════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════
+# SEED REVIEWS
+# ═══════════════════════════════════════════════════════════
+def seed_fake_reviews():
+    """Insert realistic fake reviews for every product. Safe to call multiple times."""
+    import random, datetime
+
+    FAKE_USERS = [
+        "Aarav Sharma","Priya Nair","Rohan Mehta","Sneha Reddy","Vikram Iyer",
+        "Ananya Patel","Karan Joshi","Divya Menon","Arjun Kapoor","Meera Pillai",
+        "Rahul Gupta","Pooja Desai","Siddharth Rao","Kavya Krishnan","Aditya Singh",
+        "Lakshmi Verma","Nikhil Bhat","Swati Choudhury","Manish Tiwari","Ritu Agarwal",
+        "Deepak Nambiar","Sowmya Rajan","Harish Gowda","Preethi Shetty","Vivek Dubey",
+        "Nandini Subramaniam","Akash Malhotra","Anjali Mishra","Sanjay Kulkarni","Pallavi Das",
+        "Tarun Pandey","Bhavya Jain","Gaurav Chatterjee","Archana Thakur","Suresh Nayak",
+        "Mithila Rao","Ramesh Pillai","Sunita Ghosh","Ashwin Menon","Kavitha Naik",
+        "Praveen Kumar","Shilpa Yadav","Girish Hegde","Usha Patel","Santosh Varma",
+        "Rekha Bose","Vinod Suresh","Chitra Raman","Balaji Murthy","Geeta Iyengar",
+        "Isha Khanna","Mohit Bansal","Rashmi Nanda","Devendra Yadav","Smita Kulkarni",
+        "Ritesh Agarwal","Nalini Krishnan","Abhijit Dey","Sarita Jha","Bhuvan Sharma",
+        "Puja Srivastava","Surendra Nath","Harshita Garg","Lokesh Tiwari","Veena Menon",
+        "Ajay Bhatt","Mamta Rawat","Sunil Pawar","Latha Murthy","Rohini Kapoor",
+        "Prasad Iyer","Amrita Sinha","Nitesh Jain","Deepa Nair","Vijay Rathod",
+        "Savita Desai","Sushant Sahoo","Padma Krishnaswamy","Jayesh Shah","Nisha Pandey",
+        "Gopal Rao","Anita Bose","Ramakrishna Hegde","Varsha Patil","Sameer Qureshi",
+        "Lalitha Subramaniam","Asif Khan","Durga Prasad","Meenakshi Iyer","Pranav Doshi",
+        "Chandana Gowda","Arun Nair","Vidya Murthy","Sudhakar Rao","Bindu Thomas",
+        "Omkar Joshi","Renuka Naik","Dilip Mishra","Kaveri Pillai","Tushar Mehta",
+        "Shobha Krishnan","Pramod Nair","Sunanda Ravi","Rajesh Kulkarni","Girija Patel",
+        "Abhishek Verma","Preeti Joshi","Nagaraj Swamy","Sandhya Iyer","Manoj Bhatia",
+    ]
+
+    TITLES_BY_RATING = {
+        5: [
+            "Absolutely love it!", "Best purchase this year", "Exceeded my expectations",
+            "Outstanding quality", "Highly recommended!", "Perfect — no complaints",
+            "Worth every rupee", "Superb product", "Amazing value for money", "Five stars easily",
+            "Couldn't be happier", "Exactly as described", "Great buy!", "Top-notch quality",
+            "Brilliant product!", "10/10 would buy again", "Just wow!", "Superb experience",
+            "Mind-blowing quality", "Delivered on every promise", "Incredible value!",
+            "Couldn't ask for more", "Premium feel at this price!", "Very impressed",
+        ],
+        4: [
+            "Really good product", "Very satisfied", "Good value for money", "Impressed overall",
+            "Works great", "Solid purchase", "Happy with this", "Nice product",
+            "Good quality", "Almost perfect", "Quite good", "Mostly satisfied",
+            "Recommended!", "Well worth buying", "Pleased with the purchase",
+            "Very decent quality", "Does the job well", "Good all-round product",
+        ],
+        3: [
+            "Decent product", "Average quality", "Could be better", "Okay for the price",
+            "Mixed feelings", "Acceptable", "Does the job", "Room for improvement",
+            "Moderate quality", "Not bad, not great", "It's fine I guess",
+            "Average experience", "Neither here nor there", "Gets the work done",
+        ],
+        2: [
+            "Bit disappointed", "Not as expected", "Below average", "Could do better",
+            "Expected more", "Mediocre quality", "Slightly let down",
+            "Not impressed", "Had higher hopes", "Quality could be better",
+        ],
+        1: [
+            "Not happy", "Poor quality", "Disappointed", "Would not recommend",
+            "Save your money", "Didn't meet expectations", "Very poor experience",
+            "Complete letdown", "Regret buying this",
+        ],
+    }
+
+    BODIES_BY_RATING = {
+        5: [
+            "The build quality is excellent and it works exactly as advertised. Delivery was super fast and packaging was secure.",
+            "I've been using this for a few weeks now and I'm thoroughly impressed. Great value for money!",
+            "Ordered this after reading multiple reviews and I'm not disappointed. Everything is perfect.",
+            "Top-quality product. Very sturdy and well-made. Looks premium too. Will definitely buy again.",
+            "Absolutely delighted with this purchase. Works flawlessly and looks exactly like the photos.",
+            "Fantastic product! My family loves it. Arrived well before the expected date.",
+            "Excellent quality for the price. Highly recommend to anyone looking for a reliable product.",
+            "This exceeded my expectations. The finish is smooth, functions perfectly and looks great.",
+            "Very happy with this purchase. Customer service was also very responsive when I had a query.",
+            "Perfect product, zero defects. Matches the description exactly. Delivery was prompt.",
+            "Truly one of the best purchases I've made online. Packaging was secure and the product inside was flawless.",
+            "I gifted this to my mother and she absolutely loves it! Quality is outstanding for the price.",
+            "Was skeptical at first but this product completely won me over. Five stars without any hesitation.",
+            "Seamless ordering experience. The product quality justifies the price and then some.",
+            "Works like a dream! Setup was easy and performance has been rock solid ever since.",
+            "This is my second purchase from this seller and both times the quality has been impeccable.",
+            "Highly impressed with the attention to detail. Feels premium and well-crafted.",
+            "Received it in 2 days. Unboxed it and immediately loved it. Best online purchase this season!",
+            "I researched for weeks before buying and this was the right call. Zero regrets.",
+            "Excellent value. My friends keep asking where I got this from. Definitely recommending Nexacart!",
+            "Smooth delivery, perfect packaging, flawless product. What more can you ask for?",
+            "The quality blew me away. I've bought similar things before but this is clearly a step above.",
+            "Very happy with this. The seller was honest about the product and it matched perfectly.",
+            "Fast shipping, great quality, no issues whatsoever. Highly satisfied customer right here!",
+        ],
+        4: [
+            "Good product overall. Does what it's supposed to do. Minor packaging could be better.",
+            "Quite happy with the purchase. Quality is good. Took a couple of extra days to arrive.",
+            "Works well for my needs. The product is solid and well-built. Just minor room for improvement.",
+            "Very good value for money. Performance is reliable. Would buy again.",
+            "Nice product, easy to use. Build quality is solid. One small complaint about the instructions.",
+            "Good buy overall. Product functions as expected. The color is slightly different from photos.",
+            "Happy with this purchase. Functional and well-made. Shipping was on time.",
+            "Solid product. Does what it says. Only missing a small extra feature I hoped for.",
+            "Really good quality. Took off one star because delivery was a day late but product itself is great.",
+            "Positive experience overall. The product is well-built and the seller was responsive.",
+            "Decent build quality. Not flawless but definitely worth the price.",
+            "Great value for money. This is better than many pricier alternatives I've tried.",
+            "Works perfectly. Delivery was quick and the packaging was adequate. Happy customer.",
+            "Good purchase. Instructions were clear and product performance has been reliable.",
+            "Nice product. Minor finishing issues but nothing major. Overall a great buy.",
+            "Satisfied with the purchase. Delivery was prompt and the product quality is good.",
+        ],
+        3: [
+            "Product is okay. Not the best quality but works for the price. Packaging was average.",
+            "Decent product. Does the job but nothing extraordinary. Could use some improvements.",
+            "Average experience. Product works but feels a bit cheaply made in some areas.",
+            "Okay product. Shipping was fine. Quality could be better for this price range.",
+            "It's acceptable. Not great, not terrible. Might look for alternatives next time.",
+            "Mixed feelings. Some things I liked, some not so much. Average overall.",
+            "Functional but not impressive. I expected a bit more given the reviews.",
+            "Gets the work done but there are better options out there. Average experience.",
+            "Not the best quality I've seen but it does what it's meant to do. Okay for now.",
+            "Three stars feels right. It's neither great nor bad. Just an average product.",
+        ],
+        2: [
+            "The product quality didn't meet my expectations. Feels flimsy and seems to have minor defects.",
+            "Disappointed with the build quality. Looks different from the product images.",
+            "Product arrived late and quality was below what I expected. Not great for the price.",
+            "Had issues from day one. Customer support was helpful though.",
+            "Expected much better based on the description. Quality is poor and finish is rough.",
+            "The product looks nothing like the photos. Very disappointed.",
+            "Cheap material. Felt like it would break very quickly. Very underwhelmed.",
+        ],
+        1: [
+            "Very poor quality. Not what was shown in the images. Returning this.",
+            "Completely disappointed. Product stopped working within a week. Would not recommend.",
+            "Waste of money. Quality is terrible and doesn't match the description at all.",
+            "Broke within days of use. Build quality is appalling. Don't buy this.",
+            "Complete waste. The product arrived damaged and customer care was unhelpful.",
+        ],
+    }
+
+    db = get_db()
+    products = list(db.products.find({"seq_id": {"$exists": True}}, {"seq_id": 1, "name": 1, "category": 1, "rating": 1}))
+
+    if not products:
+        return 0
+
+    # Create fake user records if they don't exist (use negative seq_ids to avoid conflicts)
+    fake_user_map = {}  # username -> seq_id
+    existing_fake = list(db.users.find({"is_fake_reviewer": True}, {"seq_id": 1, "username": 1}))
+    for u in existing_fake:
+        fake_user_map[u["username"]] = u["seq_id"]
+
+    next_fake_id = min([-1] + [u["seq_id"] for u in existing_fake]) - 1
+    for uname in FAKE_USERS:
+        if uname not in fake_user_map:
+            db.users.update_one(
+                {"username": uname, "is_fake_reviewer": True},
+                {"$setOnInsert": {"seq_id": next_fake_id, "username": uname,
+                                  "email": uname.lower().replace(" ", ".") + "@nexacart.fake",
+                                  "is_fake_reviewer": True}},
+                upsert=True
+            )
+            fake_user_map[uname] = next_fake_id
+            next_fake_id -= 1
+
+    # Re-fetch to get actual seq_ids (upsert may have used existing)
+    existing_fake = list(db.users.find({"is_fake_reviewer": True}, {"seq_id": 1, "username": 1}))
+    fake_user_map = {u["username"]: u["seq_id"] for u in existing_fake}
+    fake_user_ids = list(fake_user_map.values())
+
+    total_inserted = 0
+    now = datetime.datetime.utcnow()
+
+    for prod in products:
+        pid = prod["seq_id"]
+        existing_count = db.reviews.count_documents({"product_id": pid})
+        if existing_count >= 15:
+            continue  # already has plenty of reviews
+
+        # Decide how many reviews to add (12-25 per product)
+        target = random.randint(12, 25)
+        to_add = target - existing_count
+        if to_add <= 0:
+            continue
+
+        # Weight ratings around the product's existing rating (biased toward 4-5)
+        base = prod.get("rating", 4.0)
+        weights = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0}
+        if base >= 4.5:
+            weights = {5: 55, 4: 30, 3: 10, 2: 3, 1: 2}
+        elif base >= 4.0:
+            weights = {5: 35, 4: 40, 3: 15, 2: 7, 1: 3}
+        elif base >= 3.5:
+            weights = {5: 20, 4: 30, 3: 30, 2: 12, 1: 8}
+        else:
+            weights = {5: 15, 4: 20, 3: 30, 2: 20, 1: 15}
+
+        rating_pool = []
+        for r, w in weights.items():
+            rating_pool.extend([r] * w)
+
+        # Pick random users (avoid repeating same user for same product)
+        existing_user_ids = {r["user_id"] for r in db.reviews.find({"product_id": pid}, {"user_id": 1})}
+        available_users = [uid for uid in fake_user_ids if uid not in existing_user_ids]
+        random.shuffle(available_users)
+
+        reviews_to_insert = []
+        for i in range(min(to_add, len(available_users))):
+            rating = random.choice(rating_pool)
+            days_ago = random.randint(1, 365)
+            created = now - datetime.timedelta(days=days_ago, hours=random.randint(0, 23), minutes=random.randint(0, 59))
+            reviews_to_insert.append({
+                "product_id": pid,
+                "user_id": available_users[i],
+                "rating": rating,
+                "title": random.choice(TITLES_BY_RATING[rating]),
+                "body": random.choice(BODIES_BY_RATING[rating]),
+                "created_at": created,
+                "is_fake": True,
+            })
+
+        if reviews_to_insert:
+            db.reviews.insert_many(reviews_to_insert)
+            total_inserted += len(reviews_to_insert)
+
+            # Update product rating & review count
+            agg = list(db.reviews.aggregate([
+                {"$match": {"product_id": pid}},
+                {"$group": {"_id": None, "avg": {"$avg": "$rating"}, "cnt": {"$sum": 1}}}
+            ]))
+            if agg:
+                db.products.update_one(
+                    {"seq_id": pid},
+                    {"$set": {"rating": round(agg[0]["avg"], 1), "reviews": agg[0]["cnt"]}}
+                )
+
+    return total_inserted
+
+
+@app.route("/admin/seed-reviews", methods=["GET", "POST"])
+@admin_required
+def admin_seed_reviews():
+    msg = None
+    if request.method == "POST":
+        try:
+            count = seed_fake_reviews()
+            msg = f"✅ Successfully added {count} fake reviews across all products!"
+        except Exception as e:
+            msg = f"❌ Error: {e}"
+    return render_template("admin_seed_reviews.html", msg=msg)
+
 # STARTUP
 # ═══════════════════════════════════════════════════════════
 with app.app_context():
     try:
         init_db()
         insert_sample_products()
+        seed_fake_reviews()
     except Exception as e:
         app.logger.warning(f"Startup DB init: {e}")
 
