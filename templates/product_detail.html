@@ -383,7 +383,7 @@
             <div class="pd-rv-stars">{{ '★' * r.rating }}{{ '☆' * (5-r.rating) }}</div>
           </div>
           <div class="pd-rv-badge">✓ Verified Purchase</div>
-          <div style="margin-left:auto;font-size:.7rem;color:var(--muted)">{{ r.created_at[:10] }}</div>
+          <div style="margin-left:auto;font-size:.7rem;color:var(--muted)">{{ r.created_at.strftime("%d %b %Y") if r.created_at and r.created_at.__class__.__name__ == "datetime" else (r.created_at|string)[:10] }}</div>
         </div>
         {% if r.title %}<div class="pd-rv-title">{{ r.title }}</div>{% endif %}
         <p class="pd-rv-text">{{ r.body }}</p>

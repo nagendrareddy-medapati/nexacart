@@ -2688,6 +2688,7 @@ td{{padding:3px 4px;border:1px solid #eee}}
 @admin_required
 def admin_users():
     pipeline=[
+        {"$match":{"is_fake_reviewer":{"$ne":True}}},
         {"$lookup":{"from":"orders","localField":"seq_id","foreignField":"user_id","as":"orders"}},
         {"$project":{
             "seq_id":1,"username":1,"email":1,"phone":1,"city":1,
