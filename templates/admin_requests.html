@@ -1,0 +1,183 @@
+{% extends "admin_base.html" %}
+{% block title %}Admin Requests — Nexacart{% endblock %}
+{% block page_title %}Admin Access Requests{% endblock %}
+{% block content %}
+
+<div style="margin-bottom:1.2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem">
+  <p style="font-size:.85rem;color:#6b7280">
+    Review and manage new admin access requests. Only you (super admin) can see this page.
+  </p>
+  <span style="background:#2d5016;color:#fff;font-size:.72rem;font-weight:700;padding:.3rem .8rem;border-radius:20px">
+    🛡️ Super Admin Only
+  </span>
+</div>
+
+<!-- Alert toast -->
+<div id="toastAlert" style="display:none;position:fixed;top:1.2rem;right:1.2rem;z-index:9999;max-width:380px;
+  border-radius:10px;padding:.9rem 1.2rem;font-size:.85rem;font-weight:500;
+  box-shadow:0 8px 30px rgba(0,0,0,.18);line-height:1.5;animation:slideIn .25s ease">
+</div>
+
+{% if not requests %}
+<!-- Empty state -->
+<div style="text-align:center;padding:4rem 2rem;background:#fff;border-radius:12px;border:1px solid #e5e7eb">
+  <div style="font-size:3rem;margin-bottom:.8rem">📭</div>
+  <h3 style="font-size:1.1rem;color:#374151;margin-bottom:.4rem">No Pending Requests</h3>
+  <p style="color:#9ca3af;font-size:.85rem">There are currently no admin access requests waiting for review.</p>
+</div>
+
+{% else %}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1.2rem" id="requestsGrid">
+  {% for req in requests %}
+  <div class="req-card" id="card-{{ req._id }}">
+    <div class="req-card-header">
+      <div class="req-avatar">{{ req.name[0].upper() }}</div>
+      <div>
+        <div class="req-name">{{ req.name }}</div>
+        <div class="req-meta">📧 {{ req.email }}</div>
+        {% if req.phone %}
+        <div class="req-meta">📱 {{ req.phone }}</div>
+        {% endif %}
+      </div>
+      <span class="req-status-badge pending">Pending</span>
+    </div>
+
+    <div class="req-reason">
+      <div class="req-reason-label">Reason for Access</div>
+      <div class="req-reason-text">{{ req.reason }}</div>
+    </div>
+
+    <div class="req-footer">
+      <div class="req-time">🕐 {{ req.requested_at }}</div>
+      <div class="req-actions">
+        <button class="req-btn decline"
+                onclick="handleAction('{{ req._id }}', 'decline', this)">
+          ✕ Decline
+        </button>
+        <button class="req-btn accept"
+                onclick="handleAction('{{ req._id }}', 'accept', this)">
+          ✓ Accept
+        </button>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<style>
+.req-card{
+  background:#fff;border-radius:12px;border:1px solid #e5e7eb;
+  overflow:hidden;transition:box-shadow .2s;
+}
+.req-card:hover{box-shadow:0 4px 20px rgba(0,0,0,.08)}
+
+.req-card-header{
+  display:flex;align-items:flex-start;gap:.9rem;
+  padding:1.2rem 1.2rem .9rem;border-bottom:1px solid #f3f4f6;
+  position:relative;
+}
+.req-avatar{
+  width:44px;height:44px;border-radius:50%;
+  background:linear-gradient(135deg,#2d5016,#4a7c2b);
+  color:#fff;font-size:1.2rem;font-weight:700;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.req-name{font-weight:700;font-size:.95rem;color:#1c1c18;margin-bottom:.2rem}
+.req-meta{font-size:.75rem;color:#6b7280;margin-bottom:.1rem}
+.req-status-badge{
+  font-size:.62rem;font-weight:700;padding:.2rem .6rem;border-radius:20px;
+  letter-spacing:.05em;text-transform:uppercase;position:absolute;top:1rem;right:1rem;
+}
+.req-status-badge.pending{background:#fef3c7;color:#92400e;border:1px solid #fde68a}
+.req-status-badge.accepted{background:#dcfce7;color:#15803d;border:1px solid #bbf7d0}
+.req-status-badge.declined{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
+
+.req-reason{padding:.9rem 1.2rem;background:#f9fafb;border-bottom:1px solid #f0f0f0}
+.req-reason-label{font-size:.65rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.3rem}
+.req-reason-text{font-size:.83rem;color:#374151;line-height:1.5}
+
+.req-footer{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.85rem 1.2rem;gap:.6rem;flex-wrap:wrap;
+}
+.req-time{font-size:.72rem;color:#9ca3af}
+.req-actions{display:flex;gap:.5rem}
+.req-btn{
+  padding:.45rem 1rem;border-radius:7px;font-size:.78rem;font-weight:600;
+  cursor:pointer;border:none;font-family:inherit;transition:all .18s;
+}
+.req-btn.accept{background:#2d5016;color:#fff}
+.req-btn.accept:hover{background:#4a7c2b;transform:translateY(-1px)}
+.req-btn.decline{background:#fee2e2;color:#dc2626;border:1px solid #fecaca}
+.req-btn.decline:hover{background:#fecaca;transform:translateY(-1px)}
+.req-btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
+
+@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes fadeOut{from{opacity:1}to{opacity:0;transform:translateX(20px)}}
+@keyframes cardFade{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(.95)}}
+</style>
+
+<script>
+function showToast(msg, type) {
+  const toast = document.getElementById('toastAlert');
+  toast.textContent = msg;
+  toast.style.background = type === 'accept' ? '#f0fdf4' : '#fef2f2';
+  toast.style.border = type === 'accept' ? '1px solid #bbf7d0' : '1px solid #fecaca';
+  toast.style.color = type === 'accept' ? '#15803d' : '#dc2626';
+  toast.style.display = 'block';
+  toast.style.animation = 'slideIn .25s ease';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => {
+    toast.style.animation = 'fadeOut .3s ease forwards';
+    setTimeout(() => { toast.style.display = 'none'; }, 300);
+  }, 4000);
+}
+
+function handleAction(reqId, action, btn) {
+  const card = document.getElementById('card-' + reqId);
+  const btns = card.querySelectorAll('.req-btn');
+  btns.forEach(b => b.disabled = true);
+
+  const fd = new FormData();
+  fd.append('action', action);
+
+  fetch('/admin/requests/' + reqId + '/action', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(data => {
+      showToast(data.msg, action);
+      if (data.ok) {
+        // Update badge in card
+        const badge = card.querySelector('.req-status-badge');
+        badge.className = 'req-status-badge ' + action + 'd';
+        badge.textContent = action === 'accept' ? 'Accepted' : 'Declined';
+        // Fade out card after short delay
+        setTimeout(() => {
+          card.style.animation = 'cardFade .4s ease forwards';
+          setTimeout(() => {
+            card.remove();
+            // If no cards left, show empty state
+            const grid = document.getElementById('requestsGrid');
+            if (grid && grid.children.length === 0) {
+              grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:3rem 2rem;background:#fff;border-radius:12px;border:1px solid #e5e7eb"><div style="font-size:3rem;margin-bottom:.8rem">✅</div><h3 style="font-size:1.1rem;color:#374151;margin-bottom:.4rem">All Done!</h3><p style="color:#9ca3af;font-size:.85rem">All requests have been reviewed.</p></div>';
+            }
+            // Update sidebar badge
+            const sbBadge = document.getElementById('sbReqBadge');
+            if (sbBadge) {
+              const cur = parseInt(sbBadge.textContent || '0') - 1;
+              if (cur <= 0) sbBadge.style.display = 'none';
+              else sbBadge.textContent = cur;
+            }
+          }, 400);
+        }, 1200);
+      } else {
+        btns.forEach(b => b.disabled = false);
+      }
+    })
+    .catch(() => {
+      showToast('⚠️ Network error. Please try again.', 'decline');
+      btns.forEach(b => b.disabled = false);
+    });
+}
+</script>
+{% endblock %}

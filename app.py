@@ -2012,16 +2012,103 @@ def serve_product_image(product_id, slot):
 # ═══════════════════════════════════════════════════════════
 @app.route("/admin/login", methods=["GET","POST"])
 def admin_login():
-    if request.method=="POST":
-        username_input = request.form.get("username","").strip()
-        if request.form.get("secret")==ADMIN_SECRET:
-            session["is_admin"]=True
-            # Also check if the logging-in admin is the super admin
-            if username_input == SUPER_ADMIN_USERNAME:
+    """Two modes: super-admin login (username+password) and new-admin request."""
+    if request.method == "POST":
+        mode = request.form.get("mode", "request")  # "super" or "request"
+
+        if mode == "super":
+            # ── Super admin login ──────────────────────────────────
+            uname = request.form.get("username", "").strip()
+            pwd   = request.form.get("password", "").strip()
+            if uname == SUPER_ADMIN_USERNAME and pwd == SUPER_ADMIN_PASSWORD:
+                session["is_admin"]       = True
                 session["is_super_admin"] = True
-            return redirect(url_for("admin_dashboard"))
-        return render_template("admin_login.html",error="Invalid admin password.")
-    return render_template("admin_login.html",error=None)
+                session["admin_name"]     = uname
+                return redirect(url_for("admin_dashboard"))
+            return render_template("admin_login.html", error="Invalid super admin credentials.", tab="super")
+
+        else:
+            # ── New admin access request ───────────────────────────
+            name   = request.form.get("req_name", "").strip()
+            email  = request.form.get("req_email", "").strip()
+            phone  = request.form.get("req_phone", "").strip()
+            reason = request.form.get("req_reason", "").strip()
+            secret = request.form.get("req_secret", "").strip()
+            if not all([name, email, reason, secret]):
+                return render_template("admin_login.html",
+                    error="Please fill in all required fields.", tab="request")
+            if secret != ADMIN_SECRET:
+                return render_template("admin_login.html",
+                    error="Invalid admin secret key.", tab="request")
+            # Check if a pending request already exists for this email
+            existing = col("admin_requests").find_one({"email": email, "status": "pending"})
+            if existing:
+                return render_template("admin_login.html",
+                    error="A pending request already exists for this email. Please wait for super admin approval.",
+                    tab="request")
+            col("admin_requests").insert_one({
+                "name":       name,
+                "email":      email,
+                "phone":      phone,
+                "reason":     reason,
+                "status":     "pending",
+                "requested_at": datetime.datetime.utcnow(),
+            })
+            return render_template("admin_login.html",
+                success="Your request has been sent to the super admin for approval. You will be notified once approved.",
+                tab="request")
+
+    return render_template("admin_login.html", error=None, tab="super")
+
+
+@app.route("/admin/requests")
+@admin_required
+def admin_requests_page():
+    """Super-admin only: view and manage new admin access requests."""
+    if not session.get("is_super_admin"):
+        return redirect(url_for("admin_dashboard"))
+    requests_list = list(col("admin_requests").find({"status": "pending"}).sort("requested_at", -1))
+    for r in requests_list:
+        r["_id"] = str(r["_id"])
+        if hasattr(r.get("requested_at"), "strftime"):
+            r["requested_at"] = r["requested_at"].strftime("%d %b %Y, %I:%M %p")
+    return render_template("admin_requests.html", requests=requests_list)
+
+
+@app.route("/admin/requests/<req_id>/action", methods=["POST"])
+@admin_required
+def admin_request_action(req_id):
+    """Accept or decline an admin access request."""
+    if not session.get("is_super_admin"):
+        return jsonify({"ok": False, "msg": "Unauthorized"}), 403
+    from bson import ObjectId
+    action = request.form.get("action", "")  # "accept" or "decline"
+    try:
+        oid = ObjectId(req_id)
+    except Exception:
+        return jsonify({"ok": False, "msg": "Invalid request ID"}), 400
+    req_doc = col("admin_requests").find_one({"_id": oid})
+    if not req_doc:
+        return jsonify({"ok": False, "msg": "Request not found"}), 404
+    if action == "accept":
+        col("admin_requests").update_one({"_id": oid},
+            {"$set": {"status": "accepted", "actioned_at": datetime.datetime.utcnow()}})
+        return jsonify({"ok": True, "msg": f"✅ Request from {req_doc['name']} has been accepted. They can now log in using the admin secret key."})
+    elif action == "decline":
+        col("admin_requests").update_one({"_id": oid},
+            {"$set": {"status": "declined", "actioned_at": datetime.datetime.utcnow()}})
+        return jsonify({"ok": True, "msg": f"❌ Request from {req_doc['name']} has been declined."}) 
+    return jsonify({"ok": False, "msg": "Unknown action"}), 400
+
+
+@app.route("/admin/requests/count")
+@admin_required
+def admin_requests_count():
+    """Returns pending request count for sidebar badge (super admin only)."""
+    if not session.get("is_super_admin"):
+        return jsonify({"count": 0})
+    count = col("admin_requests").count_documents({"status": "pending"})
+    return jsonify({"count": count})
 
 @app.route("/admin/profile")
 @admin_required

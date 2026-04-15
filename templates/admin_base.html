@@ -24,6 +24,7 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--ink);disp
 .sb-link{display:flex;align-items:center;gap:.6rem;padding:.62rem 1.2rem;font-size:.83rem;color:rgba(255,255,255,.75);text-decoration:none;transition:all .15s;border-left:3px solid transparent}
 .sb-link:hover{background:rgba(255,255,255,.08);color:#fff;border-left-color:rgba(255,255,255,.3)}
 .sb-link.active{background:rgba(255,255,255,.12);color:#fff;border-left-color:var(--gold);font-weight:500}
+.sb-req-badge{background:#ef4444;color:#fff;font-size:.6rem;font-weight:700;padding:.15rem .45rem;border-radius:10px;min-width:18px;text-align:center;margin-left:auto}
 .sb-foot{padding:1rem 1.2rem;border-top:1px solid rgba(255,255,255,.12)}
 .sb-foot a{font-size:.78rem;color:rgba(255,255,255,.5);text-decoration:none;display:flex;align-items:center;gap:.4rem}
 .sb-foot a:hover{color:#fff}
@@ -90,6 +91,13 @@ tr:hover td{background:#fafafa}
     <div class="sb-group">Commerce</div>
     <a href="{{ url_for('admin_orders') }}" class="sb-link {% if request.endpoint=='admin_orders' %}active{% endif %}">🧾 Orders</a>
     <a href="{{ url_for('admin_users') }}" class="sb-link {% if request.endpoint=='admin_users' %}active{% endif %}">👥 Users</a>
+    {% if session.get('is_super_admin') %}
+    <div class="sb-group">Administration</div>
+    <a href="{{ url_for('admin_requests_page') }}" class="sb-link {% if request.endpoint=='admin_requests_page' %}active{% endif %}" id="sb-req-link">
+      🛡️ Admin Requests
+      <span class="sb-req-badge" id="sbReqBadge" style="display:none"></span>
+    </a>
+    {% endif %}
     <div class="sb-group">Store</div>
     <a href="{{ url_for('home') }}" class="sb-link" target="_blank">🏪 View Store</a>
   </div>
@@ -137,5 +145,15 @@ document.querySelectorAll('.sb-link,.sb-foot a').forEach(a=>{
     if(window.innerWidth<=768) document.querySelector('.sidebar').classList.remove('open');
   });
 });
+// Load pending admin request count badge (super admin only)
+(function(){
+  const badge = document.getElementById('sbReqBadge');
+  if (!badge) return;
+  fetch('/admin/requests/count')
+    .then(r=>r.json())
+    .then(data=>{
+      if(data.count>0){badge.textContent=data.count;badge.style.display='inline-block';}
+    }).catch(()=>{});
+})();
 </script>
 </body></html>
