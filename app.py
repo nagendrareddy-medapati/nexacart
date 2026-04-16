@@ -1183,16 +1183,33 @@ def register():
                 try:
                     phone_full = (country_code+phone) if phone else None
                     if account_type not in ("customer","admin"): account_type="customer"
-                    uid = next_seq("users")
-                    col("users").insert_one({
-                        "seq_id":uid,"username":u,
-                        "password":generate_password_hash(pw),
-                        "email":email or None,"phone":phone_full,
-                        "country_code":country_code,"is_verified":1,
-                        "role":account_type,"joined":datetime.datetime.utcnow(),
-                        "address":None,"city":None,"pincode":None
-                    })
-                    return redirect(url_for("login"))
+                    # Admin accounts go through super-admin approval flow
+                    if account_type == "admin":
+                        existing_req = col("admin_requests").find_one({"email": email, "status": "pending"})
+                        if existing_req:
+                            error = "A pending admin request already exists for this email. Please wait for super admin approval."
+                        else:
+                            col("admin_requests").insert_one({
+                                "name":    u,
+                                "email":   email or "",
+                                "phone":   phone_full or "",
+                                "reason":  f"Registered via signup page as admin account.",
+                                "status":  "pending",
+                                "requested_at": datetime.datetime.utcnow(),
+                            })
+                            return render_template("register.html", error=None,
+                                form_data=form_data, admin_request_sent=True)
+                    else:
+                        uid = next_seq("users")
+                        col("users").insert_one({
+                            "seq_id":uid,"username":u,
+                            "password":generate_password_hash(pw),
+                            "email":email or None,"phone":phone_full,
+                            "country_code":country_code,"is_verified":1,
+                            "role":"customer","joined":datetime.datetime.utcnow(),
+                            "address":None,"city":None,"pincode":None
+                        })
+                        return redirect(url_for("login"))
                 except Exception as ex:
                     error="Registration failed. Please try again."
     return render_template("register.html", error=error, form_data=form_data)
@@ -2103,11 +2120,13 @@ def admin_request_action(req_id):
     if action == "accept":
         col("admin_requests").update_one({"_id": oid},
             {"$set": {"status": "accepted", "actioned_at": datetime.datetime.utcnow()}})
-        return jsonify({"ok": True, "msg": f"✅ Request from {req_doc['name']} has been accepted. They can now log in using the admin secret key."})
+        name_label = req_doc.get("name") or req_doc.get("username") or "Unknown"
+        return jsonify({"ok": True, "msg": f"✅ Request from {name_label} has been accepted. They can now log in using the admin secret key."})
     elif action == "decline":
         col("admin_requests").update_one({"_id": oid},
             {"$set": {"status": "declined", "actioned_at": datetime.datetime.utcnow()}})
-        return jsonify({"ok": True, "msg": f"❌ Request from {req_doc['name']} has been declined."}) 
+        name_label = req_doc.get("name") or req_doc.get("username") or "Unknown"
+        return jsonify({"ok": True, "msg": f"❌ Request from {name_label} has been declined."})
     return jsonify({"ok": False, "msg": "Unknown action"}), 400
 
 

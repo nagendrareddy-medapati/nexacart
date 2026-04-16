@@ -39,7 +39,7 @@
     </tr>
     {% for u in users %}
     <tr>
-      <td style="color:#6b7280;font-size:.78rem">{{ u['id'] }}</td>
+      <td style="color:#6b7280;font-size:.78rem">{{ loop.index }}</td>
       <td>
         <strong>{{ u['username'] }}</strong>
         {% if u['username'] == 'admin' %}

@@ -1,5 +1,19 @@
 {% extends "base.html" %}
-{% block title %}Create Account — Nexacart{% endblock %}
+{% block title %}Create Account — Nexacart
+<style>
+.admin-req-sent{text-align:center;padding:1rem 0 .5rem}
+.req-sent-icon{font-size:2.8rem;margin-bottom:.5rem}
+.req-sent-title{font-size:1.1rem;font-weight:700;color:#15803d;margin-bottom:.35rem}
+.req-sent-msg{font-size:.83rem;color:#374151;margin-bottom:1rem;line-height:1.5}
+.req-sent-timeline{text-align:left;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:.85rem 1rem;margin-bottom:.8rem}
+.rtl-item{display:flex;align-items:center;gap:.65rem;padding:.3rem 0;font-size:.8rem;color:#374151}
+.rtl-item+.rtl-item{border-top:1px dashed #d1fae5}
+.rtl-dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;flex-shrink:0;background:#e5e7eb;color:#6b7280}
+.rtl-item.done .rtl-dot{background:#15803d;color:#fff}
+.rtl-item em{color:#6b7280;font-style:normal}
+.req-sent-note{font-size:.72rem;color:#9ca3af;line-height:1.5}
+</style>
+{% endblock %}
 {% block content %}
 <div class="auth-layout">
 
@@ -38,6 +52,24 @@
 
       {% if error %}<div class="error-box">{{ error }}</div>{% endif %}
 
+      {% if admin_request_sent %}
+      <!-- Admin request sent notification -->
+      <div class="admin-req-sent">
+        <div class="req-sent-icon">🎉</div>
+        <h3 class="req-sent-title">Request Sent!</h3>
+        <p class="req-sent-msg">Your admin access request has been submitted successfully.</p>
+        <div class="req-sent-timeline">
+          <div class="rtl-item done"><span class="rtl-dot">✓</span><span>Request submitted</span></div>
+          <div class="rtl-item wait"><span class="rtl-dot">⏳</span><span>Super admin review <em>(24–48 hours)</em></span></div>
+          <div class="rtl-item wait"><span class="rtl-dot">🔔</span><span>You'll be notified once approved</span></div>
+        </div>
+        <p class="req-sent-note">If you haven't heard back after 48 hours, contact the super admin directly.</p>
+        <a href="{{ url_for('login') }}" class="btn-primary" style="display:block;text-align:center;margin-top:1.2rem;text-decoration:none;padding:.75rem;border-radius:7px;font-weight:600;font-size:.88rem">
+          Back to Login →
+        </a>
+      </div>
+      {% else %}
+
       <!-- Account Type Selector -->
       <div class="role-selector" id="roleSelector">
         <button type="button" class="role-btn active" id="btnCustomer" onclick="selectRole('customer')">
@@ -48,7 +80,7 @@
         <button type="button" class="role-btn" id="btnAdmin" onclick="selectRole('admin')">
           <span class="role-icon">⚙️</span>
           <span class="role-label">Admin</span>
-          <span class="role-desc">Manage the store</span>
+          <span class="role-desc">Request store access</span>
         </button>
       </div>
 
@@ -185,4 +217,5 @@ document.getElementById('regForm').addEventListener('submit', function(e) {
   }
 });
 </script>
+      {% endif %}{# end admin_request_sent #}
 {% endblock %}
