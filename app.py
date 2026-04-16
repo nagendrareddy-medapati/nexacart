@@ -2067,11 +2067,21 @@ def admin_requests_page():
     """Super-admin only: view and manage new admin access requests."""
     if not session.get("is_super_admin"):
         return redirect(url_for("admin_dashboard"))
-    requests_list = list(col("admin_requests").find({"status": "pending"}).sort("requested_at", -1))
-    for r in requests_list:
-        r["_id"] = str(r["_id"])
-        if hasattr(r.get("requested_at"), "strftime"):
-            r["requested_at"] = r["requested_at"].strftime("%d %b %Y, %I:%M %p")
+    raw = list(col("admin_requests").find({"status": "pending"}).sort("requested_at", -1))
+    requests_list = []
+    for r in raw:
+        requested_at = r.get("requested_at")
+        if hasattr(requested_at, "strftime"):
+            requested_at = requested_at.strftime("%d %b %Y, %I:%M %p")
+        requests_list.append({
+            "id":           str(r["_id"]),
+            "name":         r.get("name", "Unknown"),
+            "email":        r.get("email", ""),
+            "phone":        r.get("phone", ""),
+            "reason":       r.get("reason", ""),
+            "status":       r.get("status", "pending"),
+            "requested_at": requested_at or "—",
+        })
     return render_template("admin_requests.html", requests=requests_list)
 
 

@@ -32,6 +32,19 @@ textarea{min-height:80px}
 .field-row{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
 @media(max-width:480px){.field-row{grid-template-columns:1fr}}
 .req-note{background:#fff8e1;border:1px solid #fde68a;border-radius:7px;padding:.65rem .9rem;font-size:.75rem;color:#92400e;margin-bottom:1rem;line-height:1.5}
+.success-panel{text-align:center;padding:.5rem 0 .3rem}
+.success-icon{font-size:3rem;margin-bottom:.6rem}
+.success-title{font-size:1.15rem;font-weight:700;color:#15803d;margin-bottom:.4rem}
+.success-msg{font-size:.83rem;color:#374151;margin-bottom:1.2rem;line-height:1.5}
+.success-timeline{text-align:left;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:.9rem 1rem;margin-bottom:1rem}
+.timeline-item{display:flex;align-items:center;gap:.7rem;padding:.35rem 0;font-size:.8rem}
+.timeline-item+.timeline-item{border-top:1px dashed #d1fae5}
+.tl-dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;flex-shrink:0;background:#dcfce7}
+.timeline-item.done .tl-dot{background:#15803d;color:#fff}
+.timeline-item.pending .tl-dot{background:#e5e7eb;color:#6b7280}
+.tl-text{color:#374151}
+.tl-text em{color:#6b7280;font-style:normal}
+.success-note{font-size:.72rem;color:#9ca3af;line-height:1.5}
 </style>
 </head>
 <body>
@@ -65,11 +78,31 @@ textarea{min-height:80px}
 
   <!-- New Admin Request -->
   <div class="tab-panel" id="panel-request">
+    {% if success %}
+    <!-- Success notification -->
+    <div class="success-panel">
+      <div class="success-icon">🎉</div>
+      <h3 class="success-title">Request Sent!</h3>
+      <p class="success-msg">Your admin access request has been successfully submitted.</p>
+      <div class="success-timeline">
+        <div class="timeline-item done">
+          <span class="tl-dot">✓</span>
+          <span class="tl-text">Request submitted</span>
+        </div>
+        <div class="timeline-item pending">
+          <span class="tl-dot">⏳</span>
+          <span class="tl-text">Super admin review <em>(24–48 hours)</em></span>
+        </div>
+        <div class="timeline-item pending">
+          <span class="tl-dot">🔔</span>
+          <span class="tl-text">You will be notified on approval</span>
+        </div>
+      </div>
+      <p class="success-note">If you haven't heard back after 48 hours, please contact the super admin directly.</p>
+    </div>
+    {% else %}
     {% if error and tab == 'request' %}
     <div class="alert alert-error">⚠️ {{ error }}</div>
-    {% endif %}
-    {% if success %}
-    <div class="alert alert-success">✅ {{ success }}</div>
     {% endif %}
     <div class="req-note">
       💡 Fill in your details and enter the admin secret key. Your request will be reviewed by the super admin before access is granted.
@@ -95,6 +128,7 @@ textarea{min-height:80px}
       <button class="btn" type="submit">Send Request →</button>
     </form>
     <p class="hint">Your request will be sent to the super admin.<br>You'll be notified once it is reviewed.</p>
+    {% endif %}
   </div>
 </div>
 

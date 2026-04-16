@@ -29,7 +29,7 @@
 {% else %}
 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1.2rem" id="requestsGrid">
   {% for req in requests %}
-  <div class="req-card" id="card-{{ req._id }}">
+  <div class="req-card" id="card-{{ req.id }}">
     <div class="req-card-header">
       <div class="req-avatar">{{ req.name[0].upper() }}</div>
       <div>
@@ -51,11 +51,11 @@
       <div class="req-time">🕐 {{ req.requested_at }}</div>
       <div class="req-actions">
         <button class="req-btn decline"
-                onclick="handleAction('{{ req._id }}', 'decline', this)">
+                onclick="handleAction('{{ req.id }}', 'decline', this)">
           ✕ Decline
         </button>
         <button class="req-btn accept"
-                onclick="handleAction('{{ req._id }}', 'accept', this)">
+                onclick="handleAction('{{ req.id }}', 'accept', this)">
           ✓ Accept
         </button>
       </div>
