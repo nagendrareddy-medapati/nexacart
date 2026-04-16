@@ -2146,7 +2146,7 @@ def admin_profile():
     stats = {
         "products": col("products").count_documents({}),
         "orders":   col("orders").count_documents({}),
-        "users":    col("users").count_documents({}),
+        "users":    col("users").count_documents({"is_fake_reviewer": {"$ne": True}}),
         "reviews":  col("reviews").count_documents({}),
     }
     rev_agg = list(col("orders").aggregate([{"$group":{"_id":None,"total":{"$sum":"$total"}}}]))
@@ -2183,7 +2183,7 @@ def admin_logout():
 @admin_required
 def admin_dashboard():
     stats={
-        "users":  col("users").count_documents({}),
+        "users":  col("users").count_documents({"is_fake_reviewer": {"$ne": True}}),
         "products":col("products").count_documents({}),
         "orders": col("orders").count_documents({}),
         "cart_items":sum(d.get("total",0) for d in col("cart").aggregate([{"$group":{"_id":None,"total":{"$sum":"$quantity"}}}])),
