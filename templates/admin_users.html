@@ -1,6 +1,6 @@
 {% extends "admin_base.html" %}
 {% block title %}Users — Admin{% endblock %}
-{% block page_title %}Users ({{ users|length }}){% endblock %}
+{% block page_title %}Users{% endblock %}
 {% block content %}
 
 {% if is_super_admin %}
@@ -9,19 +9,51 @@
 </div>
 {% else %}
 <div style="display:inline-flex;align-items:center;gap:.5rem;background:#f0f4ff;border:1px solid #c7d2fe;color:#3730a3;font-size:.75rem;padding:.4rem 1rem;border-radius:8px;margin-bottom:1rem">
-  ℹ️ Only the <strong>Super Admin</strong> can delete users. You have view-only access to this table.
+  ℹ️ Only the <strong>Super Admin</strong> can delete users. You have view-only access.
 </div>
 {% endif %}
 
+<!-- ── Filter bar ── -->
+<div class="uf-bar">
+  <!-- Search -->
+  <form method="get" style="display:flex;gap:.5rem;flex:1;min-width:200px;max-width:340px">
+    <input type="hidden" name="role" value="{{ role_filter }}">
+    <input name="q" value="{{ q }}" placeholder="Search by name or email…" class="uf-search">
+    <button type="submit" class="btn btn-primary btn-sm">Search</button>
+    {% if q or role_filter %}
+    <a href="{{ url_for('admin_users') }}" class="btn btn-outline btn-sm">✕</a>
+    {% endif %}
+  </form>
+
+  <!-- Role filter buttons -->
+  <div class="uf-role-btns">
+    <a href="{{ url_for('admin_users', q=q) }}"
+       class="uf-role-btn {% if not role_filter %}active{% endif %}">
+      All <span class="uf-count">{{ total_customers + total_admins }}</span>
+    </a>
+    <a href="{{ url_for('admin_users', role='customer', q=q) }}"
+       class="uf-role-btn customer {% if role_filter=='customer' %}active{% endif %}">
+      🛍️ Customers <span class="uf-count">{{ total_customers }}</span>
+    </a>
+    <a href="{{ url_for('admin_users', role='admin', q=q) }}"
+       class="uf-role-btn admin {% if role_filter=='admin' %}active{% endif %}">
+      ⚙️ Admins <span class="uf-count">{{ total_admins }}</span>
+    </a>
+  </div>
+</div>
+
 <!-- Users Table -->
 <div class="card">
-  <div class="card-hdr" style="display:flex;align-items:center;justify-content:space-between">
-    <h3>All Registered Users</h3>
-    <div style="font-size:.72rem;color:#6b7280">
-      Customers: <strong>{{ users|selectattr('role','equalto','customer')|list|length }}</strong>
-      &nbsp;·&nbsp;
-      Admins: <strong>{{ users|selectattr('role','equalto','admin')|list|length }}</strong>
-    </div>
+  <div class="card-hdr" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem">
+    <h3>
+      {% if role_filter == 'admin' %}Admin Accounts
+      {% elif role_filter == 'customer' %}Customer Accounts
+      {% else %}All Registered Users{% endif %}
+      <span style="font-size:.78rem;font-weight:400;color:#6b7280;margin-left:.4rem">({{ users|length }})</span>
+    </h3>
+    {% if q %}
+    <span style="font-size:.75rem;color:#6b7280">Results for "<strong>{{ q }}</strong>"</span>
+    {% endif %}
   </div>
   <div style="overflow-x:auto">
   <table>
@@ -51,29 +83,21 @@
       </td>
       <td>
         {% if u['role'] == 'admin' %}
-        <span style="display:inline-flex;align-items:center;gap:.3rem;background:#fef3c7;color:#92400e;font-size:.68rem;font-weight:700;padding:.2rem .55rem;border-radius:20px;letter-spacing:.06em">
-          ⚙️ ADMIN
-        </span>
+        <span class="role-tag admin-tag">⚙️ ADMIN</span>
         {% else %}
-        <span style="display:inline-flex;align-items:center;gap:.3rem;background:#f0fdf4;color:#15803d;font-size:.68rem;font-weight:700;padding:.2rem .55rem;border-radius:20px;letter-spacing:.06em">
-          🛍️ BUYER
-        </span>
+        <span class="role-tag buyer-tag">🛍️ BUYER</span>
         {% endif %}
       </td>
       <td style="font-size:.82rem">{{ u['email'] or '—' }}</td>
       <td style="font-size:.82rem">{{ u['phone'] or '—' }}</td>
       <td style="font-size:.82rem">{{ u['city'] or '—' }}</td>
-      <td style="text-align:center">
-        <strong>{{ u['order_count'] }}</strong>
-      </td>
+      <td style="text-align:center"><strong>{{ u['order_count'] }}</strong></td>
       <td>
         <strong style="color:{% if u['total_spent'] > 10000 %}#15803d{% else %}inherit{% endif %}">
           ₹{{ "{:,.0f}".format(u['total_spent']) }}
         </strong>
       </td>
-      <td style="font-size:.75rem;color:#6b7280;white-space:nowrap">
-        {{ u['joined'] or '—' }}
-      </td>
+      <td style="font-size:.75rem;color:#6b7280;white-space:nowrap">{{ u['joined'] or '—' }}</td>
       {% if is_super_admin %}
       <td>
         {% if u['username'] != 'admin' %}
@@ -92,9 +116,32 @@
       {% endif %}
     </tr>
     {% else %}
-    <tr><td colspan="{{ 10 if is_super_admin else 9 }}" style="text-align:center;padding:2.5rem;color:#6b7280">No users yet</td></tr>
+    <tr><td colspan="{{ 10 if is_super_admin else 9 }}" style="text-align:center;padding:2.5rem;color:#6b7280">
+      {% if q or role_filter %}
+        No users match the current filters. <a href="{{ url_for('admin_users') }}">Clear filters →</a>
+      {% else %}
+        No users yet.
+      {% endif %}
+    </td></tr>
     {% endfor %}
   </table>
   </div>
 </div>
+
+<style>
+.uf-bar{display:flex;flex-wrap:wrap;align-items:center;gap:.75rem;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:.85rem 1rem;margin-bottom:1rem}
+.uf-search{padding:.42rem .8rem;border:1.5px solid #e5e7eb;border-radius:7px;font-size:.83rem;outline:none;flex:1;transition:border-color .2s;font-family:inherit}
+.uf-search:focus{border-color:#2d5016;box-shadow:0 0 0 2px rgba(45,80,22,.1)}
+.uf-role-btns{display:flex;gap:.4rem;flex-wrap:wrap}
+.uf-role-btn{display:inline-flex;align-items:center;gap:.35rem;padding:.4rem .85rem;border-radius:20px;font-size:.78rem;font-weight:600;text-decoration:none;color:#6b7280;background:#fff;border:1.5px solid #e5e7eb;transition:all .18s;white-space:nowrap}
+.uf-role-btn:hover{border-color:#9ca3af;color:#374151}
+.uf-role-btn.active{background:#2d5016;color:#fff;border-color:#2d5016}
+.uf-role-btn.customer.active{background:#15803d;border-color:#15803d}
+.uf-role-btn.admin.active{background:#92400e;border-color:#92400e}
+.uf-count{background:rgba(0,0,0,.12);color:inherit;font-size:.65rem;padding:.05rem .35rem;border-radius:10px;font-weight:700}
+.uf-role-btn.active .uf-count{background:rgba(255,255,255,.25)}
+.role-tag{display:inline-flex;align-items:center;gap:.3rem;font-size:.68rem;font-weight:700;padding:.2rem .55rem;border-radius:20px;letter-spacing:.06em}
+.admin-tag{background:#fef3c7;color:#92400e}
+.buyer-tag{background:#f0fdf4;color:#15803d}
+</style>
 {% endblock %}

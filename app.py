@@ -2121,7 +2121,28 @@ def admin_request_action(req_id):
         col("admin_requests").update_one({"_id": oid},
             {"$set": {"status": "accepted", "actioned_at": datetime.datetime.utcnow()}})
         name_label = req_doc.get("name") or req_doc.get("username") or "Unknown"
-        return jsonify({"ok": True, "msg": f"✅ Request from {name_label} has been accepted. They can now log in using the admin secret key."})
+        email_val  = req_doc.get("email", "").strip()
+        phone_val  = req_doc.get("phone", "").strip()
+        # Create admin user in users collection if not already there
+        existing = col("users").find_one({"$or": [
+            {"username": name_label},
+            {"email": email_val} if email_val else {"_id": None}
+        ]})
+        if not existing:
+            uid = next_seq("users")
+            col("users").insert_one({
+                "seq_id":   uid,
+                "username": name_label,
+                "password": generate_password_hash(ADMIN_SECRET),  # temp password = admin secret
+                "email":    email_val or None,
+                "phone":    phone_val or None,
+                "role":     "admin",
+                "is_verified": 1,
+                "joined":   datetime.datetime.utcnow(),
+                "address":  None, "city": None, "pincode": None,
+                "approved_from_request": True,
+            })
+        return jsonify({"ok": True, "msg": f"✅ Request from {name_label} accepted and admin account created. They can now log in with the admin secret key."})
     elif action == "decline":
         col("admin_requests").update_one({"_id": oid},
             {"$set": {"status": "declined", "actioned_at": datetime.datetime.utcnow()}})
@@ -2850,8 +2871,18 @@ td{{padding:3px 4px;border:1px solid #eee}}
 @app.route("/admin/users")
 @admin_required
 def admin_users():
+    role_filter = request.args.get("role", "").strip()   # "admin" | "customer" | ""
+    q           = request.args.get("q", "").strip()       # search by name/email
+    match = {"is_fake_reviewer": {"$ne": True}}
+    if role_filter in ("admin", "customer"):
+        match["role"] = role_filter
+    if q:
+        match["$or"] = [
+            {"username": {"$regex": q, "$options": "i"}},
+            {"email":    {"$regex": q, "$options": "i"}},
+        ]
     pipeline=[
-        {"$match":{"is_fake_reviewer":{"$ne":True}}},
+        {"$match": match},
         {"$lookup":{"from":"orders","localField":"seq_id","foreignField":"user_id","as":"orders"}},
         {"$project":{
             "seq_id":1,"username":1,"email":1,"phone":1,"city":1,
@@ -2865,8 +2896,13 @@ def admin_users():
     for u in users:
         if hasattr(u.get("joined",""),"strftime"):
             u["joined"]=u["joined"].strftime("%Y-%m-%d %H:%M")
-    is_super_admin = session.get("is_super_admin", False)
-    return render_template("admin_users.html", users=users, pending_requests=[], is_super_admin=is_super_admin)
+    # Counts for filter chips (unfiltered)
+    total_customers = col("users").count_documents({"is_fake_reviewer":{"$ne":True},"role":"customer"})
+    total_admins    = col("users").count_documents({"is_fake_reviewer":{"$ne":True},"role":"admin"})
+    is_super_admin  = session.get("is_super_admin", False)
+    return render_template("admin_users.html", users=users, pending_requests=[],
+        is_super_admin=is_super_admin, role_filter=role_filter, q=q,
+        total_customers=total_customers, total_admins=total_admins)
 
 # ═══════════════════════════════════════════════════════════
 # API ROUTES
